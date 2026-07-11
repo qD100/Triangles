@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-const AVAILABLE_LOGOS = new Set([
+const SVG_LOGOS = [
   "BTC",
   "ETH",
   "USDT",
@@ -59,6 +59,14 @@ const AVAILABLE_LOGOS = new Set([
   "THETA",
   "ONE",
   "HOT",
+  "PAXG",
+];
+
+const PNG_LOGOS = ["HYPE"];
+
+const AVAILABLE_LOGOS = new Map<string, "svg" | "png">([
+  ...SVG_LOGOS.map((symbol): [string, "svg" | "png"] => [symbol, "svg"]),
+  ...PNG_LOGOS.map((symbol): [string, "svg" | "png"] => [symbol, "png"]),
 ]);
 
 type CoinStyle = {
@@ -95,11 +103,12 @@ type Props = {
 export default function CoinIcon({ symbol, size = 36, className = "" }: Props) {
   const key = symbol.toUpperCase();
   const [imageFailed, setImageFailed] = useState(false);
+  const extension = AVAILABLE_LOGOS.get(key);
 
-  if (AVAILABLE_LOGOS.has(key) && !imageFailed) {
+  if (extension && !imageFailed) {
     return (
       <img
-        src={`/coins/${key.toLowerCase()}.svg`}
+        src={`/coins/${key.toLowerCase()}.${extension}`}
         alt={key}
         width={size}
         height={size}
