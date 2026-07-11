@@ -1,0 +1,178 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { GearIcon, ExpandIcon, CollapseIcon, TriangleLogoIcon } from "./icons";
+import SettingsPanel from "./SettingsPanel";
+import type { ScannerSettings } from "./hooks/useArbitrage";
+
+type Props = {
+  connected?: boolean;
+  opportunitiesPerMin?: number;
+  bestProfit?: number;
+  lastUpdate?: string | null;
+  settings: ScannerSettings;
+  onUpdateSettings: (next: ScannerSettings) => void;
+};
+
+export default function Header({
+  connected = false,
+  opportunitiesPerMin = 0,
+  bestProfit = 0,
+  lastUpdate = null,
+  settings,
+  onUpdateSettings,
+}: Props) {
+  const [currentTime, setCurrentTime] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const updateClock = () => {
+      const now = new Date();
+
+      setCurrentTime(
+        now.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+          hour12: false,
+        })
+      );
+    };
+
+    updateClock();
+
+    const timer = setInterval(updateClock, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+
+    return () =>
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+  }, []);
+
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
+  }
+
+  return (
+    <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#111111]/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-8">
+        {/* LEFT */}
+
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+            <TriangleLogoIcon className="h-5 w-5" />
+          </div>
+
+          <h1 className="text-xl font-bold tracking-wide text-white">
+            Triangle Terminal
+          </h1>
+
+          <div className="ml-1 flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                connected ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"
+              }`}
+            />
+
+            <span className="text-[11px] font-bold tracking-wider text-emerald-400">
+              LIVE
+            </span>
+          </div>
+        </div>
+
+        {/* CENTER / RIGHT STATS */}
+
+        <div className="hidden items-center gap-8 md:flex">
+          <StatBlock label="Opportunities / min" value={String(opportunitiesPerMin)} />
+
+          <StatBlock
+            label="Best Profit"
+            value={`+${bestProfit.toFixed(3)}%`}
+            color="green"
+          />
+
+          <StatBlock label="Last Update" value={lastUpdate ?? currentTime} mono />
+        </div>
+
+        {/* ACTIONS */}
+
+        <div className="relative flex items-center gap-2">
+          <button
+            type="button"
+            aria-label="Settings"
+            onClick={() => setSettingsOpen((value) => !value)}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+          >
+            <GearIcon />
+          </button>
+
+          {settingsOpen && (
+            <SettingsPanel
+              settings={settings}
+              onUpdate={onUpdateSettings}
+              onClose={() => setSettingsOpen(false)}
+            />
+          )}
+
+          <button
+            type="button"
+            aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+            onClick={toggleFullscreen}
+            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+          >
+            {isFullscreen ? <CollapseIcon /> : <ExpandIcon />}
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function StatBlock({
+  label,
+  value,
+  color = "white",
+  mono = false,
+}: {
+  label: string;
+  value: string;
+  color?: "white" | "green";
+  mono?: boolean;
+}) {
+  return (
+    <div className="text-right">
+      <div className="text-[11px] uppercase tracking-wide text-zinc-500">
+        {label}
+      </div>
+
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.div
+          key={value}
+          initial={{ opacity: 0, y: -6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 6 }}
+          transition={{ duration: 0.18 }}
+          className={`text-sm font-semibold ${
+            color === "green" ? "text-emerald-400" : "text-white"
+          } ${mono ? "font-mono" : ""}`}
+        >
+          {value}
+        </motion.div>
+      </AnimatePresence>
+    </div>
+  );
+}

@@ -1,0 +1,28 @@
+@import "tailwindcss";
+
+@theme {
+    --font-sans: var(--font-geist-sans);
+    --font-mono: var(--font-geist-mono);
+}
+
+body{
+    background:#090909;
+}
+
+::-webkit-scrollbar{
+    width:8px;
+}
+
+::-webkit-scrollbar-thumb{
+    background:#2b2b2b;
+    border-radius:100px;
+}
+
+::-webkit-scrollbar-thumb:hover{
+    background:#4b4b4b;
+}
+
+::selection{
+    background:#2563eb;
+    color:white;
+}

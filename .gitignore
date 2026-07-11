@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# Secrets
+.env
+.env.local
+.env.*.local
+
+# Generated data
+live.xlsx
+log.xlsx
