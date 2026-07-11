@@ -120,7 +120,14 @@ def send_opportunity(opportunity):
 def get_exchange_info():
     url = "https://api.binance.com/api/v3/exchangeInfo"
 
-    data = requests.get(url).json()
+    response = requests.get(url)
+    data = response.json()
+
+    if "symbols" not in data:
+        raise RuntimeError(
+            f"Binance exchangeInfo request failed "
+            f"(HTTP {response.status_code}): {data}"
+        )
 
     return [
         {
@@ -355,7 +362,14 @@ def append_log_table(df):
 def scanner():
     print("Loading Binance symbols...")
 
-    symbols = get_exchange_info()
+    symbols = None
+
+    while symbols is None:
+        try:
+            symbols = get_exchange_info()
+        except Exception as error:
+            print("Failed to load Binance symbols, retrying in 5s:", error)
+            time.sleep(5)
 
     print(
         f"{len(symbols)} symbols loaded"
