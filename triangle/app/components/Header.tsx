@@ -69,26 +69,26 @@ export default function Header({
 
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#111111]/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between px-8">
+      <div className="mx-auto flex h-14 max-w-[1800px] items-center justify-between px-3 sm:h-16 sm:px-6 lg:px-8">
         {/* LEFT */}
 
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
-            <TriangleLogoIcon className="h-5 w-5" />
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 sm:h-10 sm:w-10">
+            <TriangleLogoIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>
 
-          <h1 className="text-xl font-bold tracking-wide text-white">
+          <h1 className="whitespace-nowrap text-sm font-bold tracking-wide text-white sm:text-xl">
             Triangle Terminal
           </h1>
 
-          <div className="ml-1 flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1">
+          <div className="ml-0.5 flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 sm:ml-1 sm:gap-1.5 sm:px-2.5 sm:py-1">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
                 connected ? "bg-emerald-400 animate-pulse" : "bg-zinc-600"
               }`}
             />
 
-            <span className="text-[11px] font-bold tracking-wider text-emerald-400">
+            <span className="text-[9px] font-bold tracking-wider text-emerald-400 sm:text-[11px]">
               LIVE
             </span>
           </div>
@@ -110,12 +110,12 @@ export default function Header({
 
         {/* ACTIONS */}
 
-        <div className="relative flex items-center gap-2">
+        <div className="relative flex shrink-0 items-center gap-1.5 sm:gap-2">
           <button
             type="button"
             aria-label="Settings"
             onClick={() => setSettingsOpen((value) => !value)}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white sm:h-9 sm:w-9"
           >
             <GearIcon />
           </button>
@@ -132,7 +132,7 @@ export default function Header({
             type="button"
             aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}
             onClick={toggleFullscreen}
-            className="flex h-9 w-9 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white sm:h-9 sm:w-9"
           >
             {isFullscreen ? <CollapseIcon /> : <ExpandIcon />}
           </button>

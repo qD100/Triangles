@@ -27,7 +27,7 @@ export default function RouteAnimation({
   scanStatus = { scanned: 0, total: 0 },
 }: Props) {
   return (
-    <section className="flex h-[820px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
+    <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40 sm:h-[640px] lg:h-[820px]">
 
       {/* Header */}
 

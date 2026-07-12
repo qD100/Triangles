@@ -25,7 +25,7 @@ export default function ScannerFeed({
   const visibleEvents = liveOnly ? events.filter((event) => event.live) : events;
 
   return (
-    <section className="flex h-[820px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
+    <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40 sm:h-[640px] lg:h-[820px]">
 
       {/* Header */}
 
@@ -135,10 +135,10 @@ function ScannerRow({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, x: 24 }}
       transition={{ duration: 0.25 }}
-      className="flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-[#181818]"
+      className="flex flex-col gap-1.5 rounded-lg px-3 py-3 transition-colors hover:bg-[#181818] sm:flex-row sm:items-center sm:gap-4"
     >
 
-      <div className="w-20 shrink-0">
+      <div className="flex items-center justify-between gap-3 sm:w-20 sm:shrink-0 sm:flex-col sm:items-start sm:justify-center sm:gap-0">
 
         <div className="flex items-center gap-1.5">
           <span
@@ -149,19 +149,26 @@ function ScannerRow({
           <span className="text-[10px] font-semibold tracking-wider text-zinc-500">
             {event.live ? "LIVE" : "CLOSED"}
           </span>
+          <span className="text-[10px] text-zinc-600 sm:hidden">
+            {event.time}
+          </span>
         </div>
 
-        <div className="mt-0.5 text-[10px] text-zinc-600">
+        <span className="font-mono text-sm font-bold text-emerald-400 sm:hidden">
+          +{event.profit.toFixed(5)}%
+        </span>
+
+        <div className="hidden text-[10px] text-zinc-600 sm:mt-0.5 sm:block">
           {event.time}
         </div>
 
       </div>
 
-      <div className="flex-1 truncate font-mono text-sm text-white">
+      <div className="truncate font-mono text-sm text-white sm:flex-1">
         {event.path}
       </div>
 
-      <div className="shrink-0 text-right font-mono text-sm font-bold text-emerald-400">
+      <div className="hidden shrink-0 text-right font-mono text-sm font-bold text-emerald-400 sm:block">
         +{event.profit.toFixed(5)}%
       </div>
 

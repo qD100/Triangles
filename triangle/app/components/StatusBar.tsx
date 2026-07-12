@@ -20,7 +20,7 @@ export default function StatusBar({
   return (
     <footer className="sticky bottom-0 z-40 border-t border-zinc-800 bg-[#111111]/90 backdrop-blur">
 
-      <div className="mx-auto flex h-11 max-w-[1800px] items-center justify-between px-8 text-xs">
+      <div className="mx-auto flex h-11 max-w-[1800px] items-center gap-5 overflow-x-auto px-4 text-xs sm:px-6 lg:justify-between lg:gap-0 lg:overflow-visible lg:px-8">
 
         <Item label="Connection">
           <span
@@ -69,9 +69,9 @@ function Item({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex shrink-0 items-center gap-2">
 
-      <span className="uppercase tracking-wider text-zinc-600">
+      <span className="whitespace-nowrap uppercase tracking-wider text-zinc-600">
         {label}
       </span>
 

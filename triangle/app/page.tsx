@@ -21,7 +21,7 @@ export default function Home() {
         onUpdateSettings={terminal.updateSettings}
       />
 
-      <main className="mx-auto grid w-full max-w-[1800px] flex-1 grid-cols-1 gap-6 p-6 lg:grid-cols-[1fr_1fr_1.15fr]">
+      <main className="mx-auto grid w-full max-w-[1800px] flex-1 grid-cols-1 gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_1fr_1.15fr] lg:gap-6 lg:p-6">
 
         <MarketTable
           coins={terminal.coins}

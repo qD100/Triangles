@@ -161,7 +161,7 @@ export default function CoinRow({
 
       {/* Market Cap */}
 
-      <td className="px-4 text-right text-zinc-300 whitespace-nowrap">
+      <td className="hidden px-4 text-right text-zinc-300 whitespace-nowrap sm:table-cell">
 
         {coin.market_cap > 0 ? formatCompactUsd(coin.market_cap) : "—"}
 

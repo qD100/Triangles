@@ -22,7 +22,7 @@ export default function MarketTable({
   const visibleCoins = coins.slice(0, 10);
 
   return (
-    <section className="flex h-[820px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
+    <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40 sm:h-[640px] lg:h-[820px]">
 
       {/* Header */}
 
@@ -45,11 +45,11 @@ export default function MarketTable({
         <table className="w-full table-fixed">
 
           <colgroup>
-            <col className="w-[8%]" />
-            <col className="w-[34%]" />
-            <col className="w-[24%]" />
-            <col className="w-[16%]" />
-            <col className="w-[18%]" />
+            <col className="w-[10%] sm:w-[8%]" />
+            <col className="w-[38%] sm:w-[34%]" />
+            <col className="w-[28%] sm:w-[24%]" />
+            <col className="w-[24%] sm:w-[16%]" />
+            <col className="hidden sm:table-column sm:w-[18%]" />
           </colgroup>
 
           <thead className="border-b border-zinc-800 bg-[#181818]">
@@ -72,7 +72,7 @@ export default function MarketTable({
                 24H
               </th>
 
-              <th className="px-4 text-right">
+              <th className="hidden px-4 text-right sm:table-cell">
                 Market Cap
               </th>
 
@@ -132,7 +132,7 @@ export default function MarketTable({
 
                 <td className="px-4 text-right text-zinc-800">—</td>
 
-                <td className="px-4 text-right text-zinc-800">—</td>
+                <td className="hidden px-4 text-right text-zinc-800 sm:table-cell">—</td>
 
               </tr>
 
