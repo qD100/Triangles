@@ -49,7 +49,8 @@ export default function CoinRow({
   return (
     <tr
       className={`
-        h-16
+        h-14
+        sm:h-16
         border-b
         border-zinc-900
         transition-all
@@ -76,7 +77,7 @@ export default function CoinRow({
     >
       {/* Rank */}
 
-      <td className="px-4 text-zinc-500">
+      <td className="px-1.5 text-xs text-zinc-500 sm:px-4 sm:text-base">
 
         {temporary ? "ARB" : coin.market_cap_rank}
 
@@ -84,21 +85,27 @@ export default function CoinRow({
 
       {/* Coin */}
 
-      <td className="px-4 overflow-hidden">
+      <td className="px-1.5 overflow-hidden sm:px-4">
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
 
-          <CoinIcon symbol={coin.symbol} size={36} />
+          <CoinIcon symbol={coin.symbol} size="clamp(22px, 7vw, 36px)" />
 
           <div className="min-w-0">
 
-            <div className="truncate font-semibold text-white">
+            <div className="truncate text-[11px] font-semibold text-white sm:hidden">
+
+              {coin.symbol}
+
+            </div>
+
+            <div className="hidden truncate font-semibold text-white sm:block">
 
               {coin.name}
 
             </div>
 
-            <div className="truncate text-xs uppercase tracking-wide text-zinc-500">
+            <div className="hidden truncate text-xs uppercase tracking-wide text-zinc-500 sm:block">
 
               {coin.symbol}
 
@@ -112,7 +119,7 @@ export default function CoinRow({
 
       {/* Price */}
 
-      <td className="px-4 text-right font-mono whitespace-nowrap">
+      <td className="px-1.5 text-right font-mono whitespace-nowrap text-[11px] sm:px-4 sm:text-base">
 
         <span
           className={`
@@ -145,7 +152,7 @@ export default function CoinRow({
 
       {/* 24H */}
 
-      <td className="px-4 text-right whitespace-nowrap">
+      <td className="px-1.5 text-right whitespace-nowrap text-[11px] sm:px-4 sm:text-base">
 
         <span
           className={
@@ -161,7 +168,7 @@ export default function CoinRow({
 
       {/* Market Cap */}
 
-      <td className="hidden px-4 text-right text-zinc-300 whitespace-nowrap sm:table-cell">
+      <td className="px-1.5 text-right text-[11px] text-zinc-300 whitespace-nowrap sm:px-4 sm:text-base">
 
         {coin.market_cap > 0 ? formatCompactUsd(coin.market_cap) : "—"}
 

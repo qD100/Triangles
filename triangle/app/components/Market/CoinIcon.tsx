@@ -96,7 +96,7 @@ const DEFAULT_STYLE: CoinStyle = {
 
 type Props = {
   symbol: string;
-  size?: number;
+  size?: number | string;
   className?: string;
 };
 
@@ -110,8 +110,6 @@ export default function CoinIcon({ symbol, size = 36, className = "" }: Props) {
       <img
         src={`/coins/${key.toLowerCase()}.${extension}`}
         alt={key}
-        width={size}
-        height={size}
         className={`shrink-0 rounded-full ${className}`}
         style={{ width: size, height: size }}
         onError={() => setImageFailed(true)}
@@ -132,7 +130,10 @@ export default function CoinIcon({ symbol, size = 36, className = "" }: Props) {
         backgroundColor: isGradient ? undefined : style.bg,
         backgroundImage: isGradient ? style.bg : undefined,
         color: style.fg,
-        fontSize: Math.max(10, size * (glyph.length > 1 ? 0.32 : 0.42)),
+        fontSize:
+          typeof size === "number"
+            ? Math.max(10, size * (glyph.length > 1 ? 0.32 : 0.42))
+            : 14,
         fontWeight: 700,
         lineHeight: 1,
         letterSpacing: "-0.03em",

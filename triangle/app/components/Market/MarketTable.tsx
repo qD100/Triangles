@@ -45,35 +45,36 @@ export default function MarketTable({
         <table className="w-full table-fixed">
 
           <colgroup>
-            <col className="w-[10%] sm:w-[8%]" />
-            <col className="w-[38%] sm:w-[34%]" />
-            <col className="w-[28%] sm:w-[24%]" />
-            <col className="w-[24%] sm:w-[16%]" />
-            <col className="hidden sm:table-column sm:w-[18%]" />
+            <col className="w-[8%]" />
+            <col className="w-[26%] sm:w-[34%]" />
+            <col className="w-[24%]" />
+            <col className="w-[20%] sm:w-[16%]" />
+            <col className="w-[22%] sm:w-[18%]" />
           </colgroup>
 
           <thead className="border-b border-zinc-800 bg-[#181818]">
 
-            <tr className="h-12 text-xs uppercase tracking-wider text-zinc-500">
+            <tr className="h-10 text-[9px] uppercase tracking-wider text-zinc-500 sm:h-12 sm:text-xs">
 
-              <th className="px-4 text-left">
+              <th className="px-1.5 text-left sm:px-4">
                 #
               </th>
 
-              <th className="px-4 text-left">
+              <th className="px-1.5 text-left sm:px-4">
                 Coin
               </th>
 
-              <th className="px-4 text-right">
+              <th className="px-1.5 text-right sm:px-4">
                 Price
               </th>
 
-              <th className="px-4 text-right">
+              <th className="px-1.5 text-right sm:px-4">
                 24H
               </th>
 
-              <th className="hidden px-4 text-right sm:table-cell">
-                Market Cap
+              <th className="px-1.5 text-right sm:px-4">
+                <span className="sm:hidden">Mkt Cap</span>
+                <span className="hidden sm:inline">Market Cap</span>
               </th>
 
             </tr>
@@ -106,21 +107,21 @@ export default function MarketTable({
 
             ) : (
 
-              <tr className="h-16 border-t border-zinc-900">
+              <tr className="h-14 border-t border-zinc-900 sm:h-16">
 
-                <td className="px-4 text-zinc-700">
+                <td className="px-1.5 text-xs text-zinc-700 sm:px-4 sm:text-base">
                   11
                 </td>
 
-                <td className="px-4">
+                <td className="px-1.5 sm:px-4">
 
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 sm:gap-3">
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full border border-dashed border-zinc-700 text-zinc-700">
+                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-dashed border-zinc-700 text-xs text-zinc-700 sm:h-9 sm:w-9 sm:text-base">
                       ○
                     </div>
 
-                    <div className="text-xs uppercase tracking-wide text-zinc-700">
+                    <div className="truncate text-[10px] uppercase tracking-wide text-zinc-700 sm:text-xs">
                       Reserved Slot
                     </div>
 
@@ -128,11 +129,11 @@ export default function MarketTable({
 
                 </td>
 
-                <td className="px-4 text-right text-zinc-800">—</td>
+                <td className="px-1.5 text-right text-[11px] text-zinc-800 sm:px-4 sm:text-base">—</td>
 
-                <td className="px-4 text-right text-zinc-800">—</td>
+                <td className="px-1.5 text-right text-[11px] text-zinc-800 sm:px-4 sm:text-base">—</td>
 
-                <td className="hidden px-4 text-right text-zinc-800 sm:table-cell">—</td>
+                <td className="px-1.5 text-right text-[11px] text-zinc-800 sm:px-4 sm:text-base">—</td>
 
               </tr>
 
