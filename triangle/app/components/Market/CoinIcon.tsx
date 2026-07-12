@@ -62,7 +62,7 @@ const SVG_LOGOS = [
   "PAXG",
 ];
 
-const PNG_LOGOS = ["HYPE"];
+const PNG_LOGOS = ["HYPE", "WBETH"];
 
 const AVAILABLE_LOGOS = new Map<string, "svg" | "png">([
   ...SVG_LOGOS.map((symbol): [string, "svg" | "png"] => [symbol, "svg"]),
