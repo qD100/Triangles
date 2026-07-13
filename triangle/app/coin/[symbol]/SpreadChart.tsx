@@ -24,14 +24,15 @@ const UNIT = PLOT_WIDTH / (VISIBLE_POINTS - 1);
 const GRID_EVERY = 4;
 
 // The backend's actual broadcast interval isn't a fixed 1s (three sequential
-// Binance calls plus network latency push it to ~2-3s in practice), so the
-// slide duration is measured from real arrival gaps instead of assumed —
-// keeps the motion synced to true cadence rather than idling after a
-// too-short animation. Clamped so a stall or a burst can't produce a
-// degenerate (instant or glacial) slide.
+// Binance calls plus network latency push it to ~2-3s in practice) and has
+// some jitter. Rather than animate a fixed-duration CSS transition per tick
+// (which sits motionless whenever the next tick is late), the slide is
+// driven every animation frame from a rolling velocity estimate — motion
+// never stops, and the estimate self-corrects as real gaps are measured.
 const MIN_STEP_MS = 500;
 const MAX_STEP_MS = 6000;
 const DEFAULT_STEP_MS = 2000;
+const DEFAULT_VELOCITY = UNIT / DEFAULT_STEP_MS;
 
 // Pre-built once, like a TradingView grid — never regenerated per tick.
 // The pattern repeats every GRID_EVERY*UNIT, and the slide only ever moves
@@ -76,8 +77,8 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
 
   const plottedRef = useRef<SpreadPoint[]>([]);
   const lastAppliedTimeRef = useRef<number | null>(null);
-  const lastArrivalWallClockRef = useRef<number | null>(null);
-  const animatingRef = useRef(false);
+  const lastCommitWallClockRef = useRef<number | null>(null);
+  const velocityRef = useRef(DEFAULT_VELOCITY);
   const yScaleRef = useRef({ min: 0, range: 1 });
 
   function toY(value: number) {
@@ -120,13 +121,23 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
     futuresDotGroupRef.current?.setAttribute("transform", `translate(${lastFuturesX.toFixed(2)},${lastFuturesY.toFixed(2)})`);
   }
 
+  function resetSlide() {
+    for (const el of [groupRef.current, gridRef.current]) {
+      el?.style.setProperty("transform", "translateX(0px)");
+    }
+  }
+
   function appendPoint(point: SpreadPoint) {
     const now = Date.now();
-    const stepMs =
-      lastArrivalWallClockRef.current === null
-        ? DEFAULT_STEP_MS
-        : Math.min(MAX_STEP_MS, Math.max(MIN_STEP_MS, now - lastArrivalWallClockRef.current));
-    lastArrivalWallClockRef.current = now;
+
+    if (plottedRef.current.length >= VISIBLE_POINTS && lastCommitWallClockRef.current !== null) {
+      const gap = Math.min(MAX_STEP_MS, Math.max(MIN_STEP_MS, now - lastCommitWallClockRef.current));
+      // Blend rather than snap to the latest gap, so one jittery tick
+      // doesn't visibly jolt the scroll speed.
+      velocityRef.current = velocityRef.current * 0.5 + (UNIT / gap) * 0.5;
+    }
+
+    lastCommitWallClockRef.current = now;
 
     const plotted = plottedRef.current;
 
@@ -140,55 +151,38 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
       return;
     }
 
-    if (animatingRef.current) return;
-    animatingRef.current = true;
+    const trimmed = [...plotted.slice(1), point];
+    plottedRef.current = trimmed;
 
-    const withNew = [...plotted, point];
-    draw(withNew);
-
-    const group = groupRef.current;
-    const grid = gridRef.current;
-
-    if (group) {
-      group.style.transition = "none";
-      group.style.transform = "translateX(0px)";
-    }
-
-    if (grid) {
-      grid.style.transition = "none";
-      grid.style.transform = "translateX(0px)";
-    }
-
-    requestAnimationFrame(() => {
-      if (group) {
-        group.style.transition = `transform ${stepMs}ms linear`;
-        group.style.transform = `translateX(${-UNIT}px)`;
-      }
-
-      if (grid) {
-        grid.style.transition = `transform ${stepMs}ms linear`;
-        grid.style.transform = `translateX(${-UNIT}px)`;
-      }
-    });
-
-    setTimeout(() => {
-      const trimmed = withNew.slice(1);
-      plottedRef.current = trimmed;
-
-      if (group) {
-        group.style.transition = "none";
-        group.style.transform = "translateX(0px)";
-      }
-
-      if (grid) {
-        grid.style.transition = "none";
-        grid.style.transform = "translateX(0px)";
-      }
-
-      draw(trimmed);
-      animatingRef.current = false;
-    }, stepMs);
+    // Resets instantly and looks seamless: the per-frame loop below had
+    // already slid the previous view up to (at most) one full UNIT as a
+    // preview of this exact moment.
+    resetSlide();
+    draw(trimmed);
   }
+
+  // Runs forever, continuously previewing the next slide based on the
+  // measured cadence — the line is always in motion, never resting until
+  // real data confirms (or corrects) how far it should have moved.
+  useEffect(() => {
+    let frame: number;
+
+    function tick() {
+      frame = requestAnimationFrame(tick);
+
+      if (plottedRef.current.length < VISIBLE_POINTS || lastCommitWallClockRef.current === null) return;
+
+      const elapsed = Date.now() - lastCommitWallClockRef.current;
+      const offset = Math.min(elapsed * velocityRef.current, UNIT);
+      const transform = `translateX(${(-offset).toFixed(2)}px)`;
+
+      groupRef.current?.style.setProperty("transform", transform);
+      gridRef.current?.style.setProperty("transform", transform);
+    }
+
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   useEffect(() => {
     const latest = history[history.length - 1];
@@ -203,14 +197,9 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
   useEffect(() => {
     plottedRef.current = [];
     lastAppliedTimeRef.current = null;
-    lastArrivalWallClockRef.current = null;
-    animatingRef.current = false;
-
-    for (const el of [groupRef.current, gridRef.current]) {
-      if (!el) continue;
-      el.style.transition = "none";
-      el.style.transform = "translateX(0px)";
-    }
+    lastCommitWallClockRef.current = null;
+    velocityRef.current = DEFAULT_VELOCITY;
+    resetSlide();
   }, [symbol]);
 
   const spreadColor =
