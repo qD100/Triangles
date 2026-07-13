@@ -26,3 +26,8 @@ body{
     background:#2563eb;
     color:white;
 }
+
+@keyframes honeycomb-pulse {
+    0%, 78%, 100% { fill-opacity: 0.03; }
+    90% { fill-opacity: 0.22; }
+}

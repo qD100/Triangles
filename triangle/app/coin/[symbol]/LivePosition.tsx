@@ -187,16 +187,108 @@ export default function LivePosition({ symbol, connected, current, conditions, o
   );
 }
 
-function ScanSweep() {
+// A honeycomb of triangles — fitting for "Triangle Terminal" — tessellated
+// via alternating up/down triangle strips per row. Each cell fades on its
+// own randomized (but stable, computed once at module load) cycle via a
+// plain CSS keyframe rather than a JS-driven loop per triangle, so this
+// stays cheap regardless of how many cells are on screen. The faint stroke
+// stays constant (the "connected" honeycomb structure); only fill-opacity
+// pulses (the scanning shimmer).
+const HONEYCOMB_COLS = 14;
+const HONEYCOMB_ROWS = 3;
+const HONEYCOMB_WIDTH = 900;
+const HONEYCOMB_HEIGHT = 130;
+
+type HoneycombTriangle = {
+  points: string;
+  duration: number;
+  delay: number;
+};
+
+// A plain Math.random() here would compute different values during server
+// rendering vs. client hydration (two separate module evaluations), causing
+// a hydration mismatch. This is a deterministic stand-in — same inputs
+// always produce the same "random-looking" value, so server and client
+// agree. Row/col get distinct large, mutually-prime-ish multipliers rather
+// than a sequential counter — consecutive integers fed through a sin-based
+// hash decorrelate poorly and read as visible banding, not scattered shimmer.
+function pseudoRandom(a: number, b: number, c: number) {
+  const x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+function buildHoneycomb(): HoneycombTriangle[] {
+  const triangles: HoneycombTriangle[] = [];
+  const rowHeight = HONEYCOMB_HEIGHT / HONEYCOMB_ROWS;
+  const colWidth = HONEYCOMB_WIDTH / HONEYCOMB_COLS;
+
+  for (let row = 0; row < HONEYCOMB_ROWS; row++) {
+    const y0 = row * rowHeight;
+    const y1 = y0 + rowHeight;
+
+    for (let col = 0; col < HONEYCOMB_COLS; col++) {
+      const xLeft = col * colWidth;
+      const xRight = xLeft + colWidth;
+      const xMid = xLeft + colWidth / 2;
+
+      triangles.push({
+        points: `${xLeft},${y1} ${xRight},${y1} ${xMid},${y0}`,
+        duration: 2.4 + pseudoRandom(row, col, 1) * 1.8,
+        delay: pseudoRandom(row, col, 2) * 4,
+      });
+    }
+
+    for (let col = 0; col < HONEYCOMB_COLS - 1; col++) {
+      const xLeft = col * colWidth + colWidth / 2;
+      const xRight = xLeft + colWidth;
+      const xMid = xLeft + colWidth / 2;
+
+      triangles.push({
+        points: `${xLeft},${y0} ${xRight},${y0} ${xMid},${y1}`,
+        duration: 2.4 + pseudoRandom(row, col, 3) * 1.8,
+        delay: pseudoRandom(row, col, 4) * 4,
+      });
+    }
+  }
+
+  return triangles;
+}
+
+const HONEYCOMB_TRIANGLES = buildHoneycomb();
+
+function ScanHoneycomb() {
   return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden">
-      <motion.div
-        className="absolute inset-y-0 bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent"
-        style={{ width: "45%" }}
-        animate={{ x: ["-100%", "300%"] }}
-        transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
-      />
-    </div>
+    <svg
+      viewBox={`0 0 ${HONEYCOMB_WIDTH} ${HONEYCOMB_HEIGHT}`}
+      preserveAspectRatio="none"
+      className="pointer-events-none absolute inset-0 h-full w-full"
+    >
+      {HONEYCOMB_TRIANGLES.map((tri, index) => (
+        <polygon
+          key={index}
+          points={tri.points}
+          fill="#34d399"
+          stroke="rgba(52,211,153,0.1)"
+          strokeWidth={0.75}
+          vectorEffect="non-scaling-stroke"
+          style={{
+            fillOpacity: 0.06,
+            // Longhand properties, not the `animation` shorthand: browsers
+            // expand shorthand style attributes into longhands when parsing
+            // server-rendered HTML, which otherwise reads as a hydration
+            // mismatch even though the values are identical. Also rounded
+            // to a fixed precision — the browser's CSSOM normalizes long
+            // decimal time values when it parses the server HTML, so an
+            // untruncated JS float string mismatches what it stored.
+            animationName: "honeycomb-pulse",
+            animationDuration: `${tri.duration.toFixed(3)}s`,
+            animationTimingFunction: "ease-in-out",
+            animationDelay: `${tri.delay.toFixed(3)}s`,
+            animationIterationCount: "infinite",
+          }}
+        />
+      ))}
+    </svg>
   );
 }
 
@@ -214,7 +306,7 @@ function ScanningBody({
   return (
     <div className="flex flex-col">
       <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-zinc-800 sm:h-32">
-        <ScanSweep />
+        <ScanHoneycomb />
 
         <div className="relative z-10 flex items-center gap-2">
           <span
