@@ -50,6 +50,12 @@ function percentColor(value: number | null) {
   return value >= 0 ? "text-emerald-400" : "text-red-400";
 }
 
+function priceFlashClass(flash: "up" | "down" | null) {
+  if (flash === "up") return "text-emerald-400 drop-shadow-[0_0_10px_rgba(52,211,153,1)]";
+  if (flash === "down") return "text-red-400 drop-shadow-[0_0_10px_rgba(248,113,113,1)]";
+  return "text-white";
+}
+
 function formatDuration(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
   const m = Math.floor((totalSeconds % 3600) / 60);
@@ -73,6 +79,9 @@ export default function CoinPage({
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [livePercent24h, setLivePercent24h] = useState<number | null>(null);
+  const [priceFlash, setPriceFlash] = useState<"up" | "down" | null>(null);
+  const prevPriceRef = useRef<number | null>(null);
+  const priceFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const spotFutures = useSpotFuturesTicker(upperSymbol);
 
@@ -128,8 +137,17 @@ export default function CoinPage({
 
       socket.onmessage = (event) => {
         const ticker = JSON.parse(event.data);
+        const newPrice = Number(ticker.c);
 
-        setLivePrice(Number(ticker.c));
+        if (prevPriceRef.current !== null && newPrice !== prevPriceRef.current) {
+          setPriceFlash(newPrice > prevPriceRef.current ? "up" : "down");
+
+          if (priceFlashTimeoutRef.current) clearTimeout(priceFlashTimeoutRef.current);
+          priceFlashTimeoutRef.current = setTimeout(() => setPriceFlash(null), 1000);
+        }
+
+        prevPriceRef.current = newPrice;
+        setLivePrice(newPrice);
         setLivePercent24h(Number(ticker.P));
       };
 
@@ -143,6 +161,7 @@ export default function CoinPage({
     return () => {
       closedByUs = true;
       socket?.close();
+      if (priceFlashTimeoutRef.current) clearTimeout(priceFlashTimeoutRef.current);
     };
   }, [upperSymbol]);
 
@@ -193,6 +212,7 @@ export default function CoinPage({
             <Stat
               label="Price"
               value={formatPrice(displayPrice)}
+              className={priceFlashClass(priceFlash)}
               live={livePrice !== null}
             />
 
@@ -296,7 +316,7 @@ function Stat({
         {label}
         {live && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
       </div>
-      <div className={`mt-1 font-mono text-sm font-bold sm:text-lg ${className}`}>
+      <div className={`mt-1 font-mono text-sm font-bold transition-all sm:text-lg ${className}`}>
         {value}
       </div>
     </div>

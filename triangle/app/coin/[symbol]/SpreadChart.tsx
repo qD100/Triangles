@@ -212,27 +212,36 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
 
   return (
     <section className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 p-4">
-        <div className="flex items-center gap-4 text-xs">
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-blue-500" />
-            <span className="text-zinc-400">Spot</span>
-            <span className="font-mono font-semibold text-white">
-              {current ? formatPrice(current.spot) : "—"}
-            </span>
-          </span>
-
-          <span className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-yellow-400" />
-            <span className="text-zinc-400">Futures</span>
-            <span className="font-mono font-semibold text-white">
-              {current ? formatPrice(current.futures) : "—"}
-            </span>
+      <div className="border-b border-zinc-800 p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-violet-400" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-400">
+            Spot / Futures Spread Monitor
           </span>
         </div>
 
-        <div className={`font-mono text-sm font-bold ${spreadColor}`}>
-          {current ? `${current.spread_percent >= 0 ? "+" : ""}${current.spread_percent.toFixed(4)}%` : "—"}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-blue-500" />
+              <span className="text-zinc-400">Spot</span>
+              <span className="font-mono font-semibold text-white">
+                {current ? formatPrice(current.spot) : "—"}
+              </span>
+            </span>
+
+            <span className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-yellow-400" />
+              <span className="text-zinc-400">Futures</span>
+              <span className="font-mono font-semibold text-white">
+                {current ? formatPrice(current.futures) : "—"}
+              </span>
+            </span>
+          </div>
+
+          <div className={`font-mono text-sm font-bold ${spreadColor}`}>
+            {current ? `${current.spread_percent >= 0 ? "+" : ""}${current.spread_percent.toFixed(4)}%` : "—"}
+          </div>
         </div>
       </div>
 
