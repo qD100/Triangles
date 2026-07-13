@@ -8,5 +8,5 @@ __pycache__/
 .env.*.local
 
 # Generated data
-live.xlsx
-log.xlsx
+live*.xlsx
+log*.xlsx

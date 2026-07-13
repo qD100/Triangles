@@ -16,6 +16,8 @@ from openpyxl import Workbook, load_workbook
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
+import sf
+
 
 BASE = "USDT"
 MAX_PROFIT_SANITY_CAP = 0.5
@@ -88,6 +90,23 @@ async def arbitrage_websocket(websocket: WebSocket):
     except WebSocketDisconnect:
         clients.remove(websocket)
         print("Website disconnected")
+
+
+@app.websocket("/ws/spotfutures")
+async def spotfutures_websocket(websocket: WebSocket):
+    await websocket.accept()
+
+    sf.clients.append(websocket)
+
+    print("[spotfutures] Website connected")
+
+    try:
+        while True:
+            await websocket.receive_text()
+
+    except WebSocketDisconnect:
+        sf.clients.remove(websocket)
+        print("[spotfutures] Website disconnected")
 
 
 async def broadcast_opportunity(opportunity):
@@ -455,6 +474,7 @@ async def startup_event():
     global main_loop
 
     main_loop = asyncio.get_running_loop()
+    sf.main_loop = main_loop
 
     scanner_thread = threading.Thread(
         target=scanner,
@@ -462,6 +482,13 @@ async def startup_event():
     )
 
     scanner_thread.start()
+
+    spotfutures_thread = threading.Thread(
+        target=sf.scan_loop,
+        daemon=True
+    )
+
+    spotfutures_thread.start()
 
 
 if __name__ == "__main__":

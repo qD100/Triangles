@@ -1,11 +1,12 @@
 "use client";
 
-import { use, useEffect, useState } from "react";
+import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CoinIcon from "@/app/components/Market/CoinIcon";
 import { TriangleLogoIcon } from "@/app/components/icons";
 import { initialCoins } from "@/app/data/initialCoins";
-import CoinChart from "./CoinChart";
+import SpreadChart from "./SpreadChart";
+import useSpotFuturesTicker from "./useSpotFuturesTicker";
 
 type Snapshot = {
   symbol: string;
@@ -49,6 +50,14 @@ function percentColor(value: number | null) {
   return value >= 0 ? "text-emerald-400" : "text-red-400";
 }
 
+function formatDuration(totalSeconds: number) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+
+  return [h, m, s].map((n) => String(n).padStart(2, "0")).join(":");
+}
+
 export default function CoinPage({
   params,
 }: {
@@ -64,6 +73,21 @@ export default function CoinPage({
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
   const [livePrice, setLivePrice] = useState<number | null>(null);
   const [livePercent24h, setLivePercent24h] = useState<number | null>(null);
+
+  const spotFutures = useSpotFuturesTicker(upperSymbol);
+
+  const mountedAt = useRef(0);
+  const [uptimeSeconds, setUptimeSeconds] = useState(0);
+
+  useEffect(() => {
+    mountedAt.current = Date.now();
+
+    const interval = setInterval(() => {
+      setUptimeSeconds(Math.floor((Date.now() - mountedAt.current) / 1000));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,8 +105,8 @@ export default function CoinPage({
 
     load();
 
-    // 30D/1Y/volume/market cap don't move fast; price/24H come live over
-    // the websocket below. This poll is just a slow-moving fallback/refresh.
+    // Volume/market cap don't move fast; price/24H come live over the
+    // websocket below. This poll is just a slow-moving fallback/refresh.
     const interval = setInterval(load, 30_000);
 
     return () => {
@@ -143,8 +167,6 @@ export default function CoinPage({
       </header>
 
       <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-4 p-3 sm:gap-6 sm:p-6">
-        {/* Point 1 — header */}
-
         <section className="rounded-xl border border-zinc-800 bg-[#111111] p-4 shadow-2xl shadow-black/40 sm:p-6">
           <div className="flex items-center gap-3">
             <CoinIcon symbol={upperSymbol} size={44} />
@@ -181,15 +203,24 @@ export default function CoinPage({
             />
 
             <Stat
-              label="30D"
-              value={formatPercent(snapshot?.percentChange30d ?? null)}
-              className={percentColor(snapshot?.percentChange30d ?? null)}
+              label="Spread"
+              value={
+                spotFutures.current
+                  ? `${spotFutures.current.spread_percent >= 0 ? "+" : ""}${spotFutures.current.spread_percent.toFixed(4)}%`
+                  : "—"
+              }
+              className={percentColor(spotFutures.current?.spread_percent ?? null)}
+              live={spotFutures.current !== null}
             />
 
             <Stat
-              label="1Y"
-              value={formatPercent(snapshot?.percentChange1y ?? null)}
-              className={percentColor(snapshot?.percentChange1y ?? null)}
+              label="Funding Rate"
+              value={
+                spotFutures.current
+                  ? `${spotFutures.current.funding_rate_percent >= 0 ? "+" : ""}${spotFutures.current.funding_rate_percent.toFixed(4)}%`
+                  : "—"
+              }
+              className={percentColor(spotFutures.current?.funding_rate_percent ?? null)}
             />
 
             <Stat
@@ -202,14 +233,48 @@ export default function CoinPage({
               value={formatCompactUsd(snapshot?.marketCap ?? null)}
             />
           </div>
+
+          {spotFutures.current && (
+            <div className="mt-3 text-[11px] text-zinc-600">
+              Est. funding APY:{" "}
+              <span className={percentColor(spotFutures.current.funding_apy_percent)}>
+                {spotFutures.current.funding_apy_percent >= 0 ? "+" : ""}
+                {spotFutures.current.funding_apy_percent.toFixed(2)}%
+              </span>
+            </div>
+          )}
         </section>
 
-        {/* Point 2 — chart */}
-
-        <CoinChart symbol={upperSymbol} />
-
-        {/* Point 3 — deferred */}
+        <SpreadChart
+          symbol={upperSymbol}
+          connected={spotFutures.connected}
+          current={spotFutures.current}
+          history={spotFutures.history}
+        />
       </main>
+
+      <footer className="sticky bottom-0 z-40 border-t border-zinc-800 bg-[#111111]/90 backdrop-blur">
+        <div className="mx-auto flex h-11 max-w-[1800px] items-center gap-5 overflow-x-auto px-4 text-xs sm:px-6 lg:justify-between lg:gap-0 lg:overflow-visible lg:px-8">
+          <FooterItem label="Connection">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                spotFutures.connected ? "bg-emerald-400 animate-pulse" : "bg-red-500"
+              }`}
+            />
+            <span className="text-zinc-300">
+              {spotFutures.connected ? "Binance (WSS)" : "Disconnected"}
+            </span>
+          </FooterItem>
+
+          <FooterItem label="Latency">
+            <span className="font-mono text-emerald-400">{spotFutures.latency} ms</span>
+          </FooterItem>
+
+          <FooterItem label="Uptime">
+            <span className="font-mono text-zinc-300">{formatDuration(uptimeSeconds)}</span>
+          </FooterItem>
+        </div>
+      </footer>
     </>
   );
 }
@@ -234,6 +299,23 @@ function Stat({
       <div className={`mt-1 font-mono text-sm font-bold sm:text-lg ${className}`}>
         {value}
       </div>
+    </div>
+  );
+}
+
+function FooterItem({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex shrink-0 items-center gap-2">
+      <span className="whitespace-nowrap uppercase tracking-wider text-zinc-600">
+        {label}
+      </span>
+      <span className="flex items-center gap-1.5">{children}</span>
     </div>
   );
 }
