@@ -34,14 +34,20 @@ const MAX_STEP_MS = 6000;
 const DEFAULT_STEP_MS = 2000;
 const DEFAULT_VELOCITY = UNIT / DEFAULT_STEP_MS;
 
-// Pre-built once, like a TradingView grid — never regenerated per tick.
-// The pattern repeats every GRID_EVERY*UNIT, and the slide only ever moves
-// things by exactly one UNIT then resets, so a static set of lines spanning
-// one extra period on each side scrolls seamlessly forever without churn.
+// A grid that scrolled with the data could never show how far the data
+// moved — the two are travelling together, so their relative motion is
+// zero. This grid stays pinned to the viewport (never transformed) and
+// acts as a ruler: the line moves under it, so crossing N cells is a
+// direct, measurable readout of how much spot/futures shifted.
 const GRID_PERIOD = GRID_EVERY * UNIT;
 const GRID_LINE_X: number[] = [];
-for (let x = PLOT_WIDTH; x > -GRID_PERIOD; x -= GRID_PERIOD) GRID_LINE_X.push(x);
-for (let x = PLOT_WIDTH + GRID_PERIOD; x < VIEW_WIDTH + GRID_PERIOD; x += GRID_PERIOD) GRID_LINE_X.push(x);
+for (let x = PLOT_WIDTH; x >= 0; x -= GRID_PERIOD) GRID_LINE_X.push(x);
+
+const H_GRID_LINES = 4;
+const GRID_LINE_Y: number[] = Array.from(
+  { length: H_GRID_LINES + 1 },
+  (_, i) => (VIEW_HEIGHT / H_GRID_LINES) * i
+);
 
 function formatPrice(value: number) {
   const maximumFractionDigits = value >= 1 ? 2 : 6;
@@ -68,7 +74,6 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
   }, [connected, current, symbol]);
 
   const groupRef = useRef<SVGGElement>(null);
-  const gridRef = useRef<SVGGElement>(null);
   const spotPathRef = useRef<SVGPathElement>(null);
   const futuresPathRef = useRef<SVGPathElement>(null);
   const gapPathRef = useRef<SVGPathElement>(null);
@@ -122,9 +127,7 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
   }
 
   function resetSlide() {
-    for (const el of [groupRef.current, gridRef.current]) {
-      el?.style.setProperty("transform", "translateX(0px)");
-    }
+    groupRef.current?.style.setProperty("transform", "translateX(0px)");
   }
 
   function appendPoint(point: SpreadPoint) {
@@ -174,10 +177,8 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
 
       const elapsed = Date.now() - lastCommitWallClockRef.current;
       const offset = Math.min(elapsed * velocityRef.current, UNIT);
-      const transform = `translateX(${(-offset).toFixed(2)}px)`;
 
-      groupRef.current?.style.setProperty("transform", transform);
-      gridRef.current?.style.setProperty("transform", transform);
+      groupRef.current?.style.setProperty("transform", `translateX(${(-offset).toFixed(2)}px)`);
     }
 
     frame = requestAnimationFrame(tick);
@@ -241,13 +242,14 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
           preserveAspectRatio="none"
           className={`h-full w-full overflow-hidden transition-opacity duration-300 ${hasGeometry ? "opacity-100" : "opacity-0"}`}
         >
-          {/* static horizontal reference line */}
-          <line x1={0} y1={VIEW_HEIGHT / 2} x2={PLOT_WIDTH} y2={VIEW_HEIGHT / 2} stroke="#1f1f23" strokeWidth={1} />
-
-          {/* pre-built vertical grid, never regenerated — only ever slides */}
-          <g ref={gridRef}>
+          {/* fixed ruler grid — pinned to the viewport, never transformed,
+              so the line's motion under it is directly measurable */}
+          <g>
             {GRID_LINE_X.map((x) => (
-              <line key={x} x1={x} y1={0} x2={x} y2={VIEW_HEIGHT} stroke="#1f1f23" strokeWidth={1} />
+              <line key={`v${x}`} x1={x} y1={0} x2={x} y2={VIEW_HEIGHT} stroke="#1f1f23" strokeWidth={1} />
+            ))}
+            {GRID_LINE_Y.map((y) => (
+              <line key={`h${y}`} x1={0} y1={y} x2={PLOT_WIDTH} y2={y} stroke="#1f1f23" strokeWidth={1} />
             ))}
           </g>
 
