@@ -48,6 +48,12 @@ export default function CoinChart({ symbol }: Props) {
   const [loading, setLoading] = useState(true);
   const [empty, setEmpty] = useState(false);
 
+  // What the chart is actually showing right now — lags behind chartType/range
+  // until new data lands, so the tab highlight never claims something the
+  // chart hasn't caught up to yet.
+  const [displayedChartType, setDisplayedChartType] = useState<ChartType>("price");
+  const [displayedRange, setDisplayedRange] = useState<Range>("1w");
+
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -83,29 +89,12 @@ export default function CoinChart({ symbol }: Props) {
     };
   }, []);
 
-  // Instant visual feedback on tab switch, independent of the data fetch below.
-  useEffect(() => {
-    seriesRef.current?.applyOptions({
-      lineColor: chartType === "price" ? "#3b82f6" : "#facc15",
-      topColor:
-        chartType === "price"
-          ? "rgba(59,130,246,0.35)"
-          : "rgba(250,204,21,0.35)",
-      bottomColor:
-        chartType === "price"
-          ? "rgba(59,130,246,0.02)"
-          : "rgba(250,204,21,0.02)",
-      priceFormat:
-        chartType === "marketcap"
-          ? { type: "custom", formatter: formatCompactUsd, minMove: 1 }
-          : { type: "price", precision: 2, minMove: 0.01 },
-    });
-  }, [chartType]);
-
   useEffect(() => {
     let cancelled = false;
     const key = `${symbol}-${chartType}-${range}`;
 
+    // Color/format and data must swap together atomically — never show one
+    // tab's color/formatting against another tab's data, even momentarily.
     function applyPoints(points: Point[]) {
       if (!seriesRef.current) return;
 
@@ -116,6 +105,22 @@ export default function CoinChart({ symbol }: Props) {
 
       setEmpty(false);
 
+      seriesRef.current.applyOptions({
+        lineColor: chartType === "price" ? "#3b82f6" : "#facc15",
+        topColor:
+          chartType === "price"
+            ? "rgba(59,130,246,0.35)"
+            : "rgba(250,204,21,0.35)",
+        bottomColor:
+          chartType === "price"
+            ? "rgba(59,130,246,0.02)"
+            : "rgba(250,204,21,0.02)",
+        priceFormat:
+          chartType === "marketcap"
+            ? { type: "custom", formatter: formatCompactUsd, minMove: 1 }
+            : { type: "price", precision: 2, minMove: 0.01 },
+      });
+
       seriesRef.current.setData(
         points.map((point) => ({
           time: point.time as UTCTimestamp,
@@ -124,6 +129,9 @@ export default function CoinChart({ symbol }: Props) {
       );
 
       chartRef.current?.timeScale().fitContent();
+
+      setDisplayedChartType(chartType);
+      setDisplayedRange(range);
     }
 
     const cached = cacheRef.current.get(key);
@@ -169,7 +177,7 @@ export default function CoinChart({ symbol }: Props) {
             type="button"
             onClick={() => setChartType("price")}
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-              chartType === "price"
+              displayedChartType === "price"
                 ? "bg-blue-500/20 text-blue-400"
                 : "text-zinc-500 hover:text-white"
             }`}
@@ -181,7 +189,7 @@ export default function CoinChart({ symbol }: Props) {
             type="button"
             onClick={() => setChartType("marketcap")}
             className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-              chartType === "marketcap"
+              displayedChartType === "marketcap"
                 ? "bg-yellow-400/20 text-yellow-400"
                 : "text-zinc-500 hover:text-white"
             }`}
@@ -197,7 +205,7 @@ export default function CoinChart({ symbol }: Props) {
               type="button"
               onClick={() => setRange(item.value)}
               className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
-                range === item.value
+                displayedRange === item.value
                   ? "bg-white/10 text-white"
                   : "text-zinc-500 hover:text-white"
               }`}
