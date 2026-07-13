@@ -31,6 +31,47 @@ const RANGES: { value: Range; label: string }[] = [
   { value: "all", label: "All" },
 ];
 
+const KLINE_PARAMS: Record<Range, { interval: string; limit: number }> = {
+  "24h": { interval: "5m", limit: 288 },
+  "1w": { interval: "1h", limit: 168 },
+  "1m": { interval: "4h", limit: 180 },
+  "1y": { interval: "1d", limit: 365 },
+  all: { interval: "1w", limit: 500 },
+};
+
+// Fetched directly from the browser, not our own server — Binance blocks
+// requests from US-based cloud/datacenter IPs (where our server runs), but
+// not from ordinary residential/browser IPs, same as the live ticker feeds.
+async function fetchPricePoints(symbol: string, range: Range): Promise<Point[]> {
+  const { interval, limit } = KLINE_PARAMS[range];
+
+  const response = await fetch(
+    `https://api.binance.com/api/v3/klines?symbol=${symbol}USDT&interval=${interval}&limit=${limit}`
+  );
+
+  if (!response.ok) return [];
+
+  const klines: unknown[] = await response.json();
+
+  if (!Array.isArray(klines)) return [];
+
+  return klines.map((candle) => {
+    const row = candle as [number, string, string, string, string];
+
+    return { time: Math.floor(row[0] / 1000), value: Number(row[4]) };
+  });
+}
+
+async function fetchMarketCapPoints(symbol: string, range: Range): Promise<Point[]> {
+  const response = await fetch(`/api/coin/${symbol}/chart?range=${range}`);
+
+  if (!response.ok) return [];
+
+  const data = await response.json();
+
+  return data.points ?? [];
+}
+
 type Props = {
   symbol: string;
 };
@@ -93,13 +134,18 @@ export default function CoinChart({ symbol }: Props) {
     let cancelled = false;
     const key = `${symbol}-${chartType}-${range}`;
 
-    // Color/format and data must swap together atomically — never show one
-    // tab's color/formatting against another tab's data, even momentarily.
+    // Color/format, data, and the tab highlight must all swap together
+    // atomically — never show one tab's styling against another tab's data,
+    // and always reflect the user's actual selection even if it came back empty.
     function applyPoints(points: Point[]) {
       if (!seriesRef.current) return;
 
+      setDisplayedChartType(chartType);
+      setDisplayedRange(range);
+
       if (points.length === 0) {
         setEmpty(true);
+        seriesRef.current.setData([]);
         return;
       }
 
@@ -129,9 +175,6 @@ export default function CoinChart({ symbol }: Props) {
       );
 
       chartRef.current?.timeScale().fitContent();
-
-      setDisplayedChartType(chartType);
-      setDisplayedRange(range);
     }
 
     const cached = cacheRef.current.get(key);
@@ -147,11 +190,10 @@ export default function CoinChart({ symbol }: Props) {
 
     async function load() {
       try {
-        const response = await fetch(
-          `/api/coin/${symbol}/chart?type=${chartType}&range=${range}`
-        );
-        const data = await response.json();
-        const points: Point[] = data.points ?? [];
+        const points =
+          chartType === "price"
+            ? await fetchPricePoints(symbol, range)
+            : await fetchMarketCapPoints(symbol, range);
 
         if (cancelled) return;
 
