@@ -33,6 +33,15 @@ const MIN_STEP_MS = 500;
 const MAX_STEP_MS = 6000;
 const DEFAULT_STEP_MS = 2000;
 
+// Pre-built once, like a TradingView grid — never regenerated per tick.
+// The pattern repeats every GRID_EVERY*UNIT, and the slide only ever moves
+// things by exactly one UNIT then resets, so a static set of lines spanning
+// one extra period on each side scrolls seamlessly forever without churn.
+const GRID_PERIOD = GRID_EVERY * UNIT;
+const GRID_LINE_X: number[] = [];
+for (let x = PLOT_WIDTH; x > -GRID_PERIOD; x -= GRID_PERIOD) GRID_LINE_X.push(x);
+for (let x = PLOT_WIDTH + GRID_PERIOD; x < VIEW_WIDTH + GRID_PERIOD; x += GRID_PERIOD) GRID_LINE_X.push(x);
+
 function formatPrice(value: number) {
   const maximumFractionDigits = value >= 1 ? 2 : 6;
   return `$${value.toLocaleString(undefined, { maximumFractionDigits })}`;
@@ -62,11 +71,10 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
   const spotPathRef = useRef<SVGPathElement>(null);
   const futuresPathRef = useRef<SVGPathElement>(null);
   const gapPathRef = useRef<SVGPathElement>(null);
-  const spotDotRef = useRef<SVGGElement>(null);
-  const futuresDotRef = useRef<SVGGElement>(null);
+  const spotDotGroupRef = useRef<SVGGElement>(null);
+  const futuresDotGroupRef = useRef<SVGGElement>(null);
 
   const plottedRef = useRef<SpreadPoint[]>([]);
-  const totalCountRef = useRef(0);
   const lastAppliedTimeRef = useRef<number | null>(null);
   const lastArrivalWallClockRef = useRef<number | null>(null);
   const animatingRef = useRef(false);
@@ -77,7 +85,10 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
     return PAD_Y + usable - ((value - yScaleRef.current.min) / yScaleRef.current.range) * usable;
   }
 
-  function draw(points: SpreadPoint[], totalCount: number) {
+  // The dots live inside the SAME sliding group as the paths and are drawn
+  // from the exact same coordinates as each path's last vertex — they can
+  // never visually detach from the line because they're the same point.
+  function draw(points: SpreadPoint[]) {
     if (points.length < 2) return;
 
     const values = points.flatMap((point) => [point.spot, point.futures]);
@@ -86,54 +97,30 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
 
     yScaleRef.current = { min, range: max - min || max * 0.001 || 1 };
 
-    const spotPath = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${(index * UNIT).toFixed(2)},${toY(point.spot).toFixed(2)}`)
-      .join(" ");
+    const spotXY = points.map((point, index) => [index * UNIT, toY(point.spot)] as const);
+    const futuresXY = points.map((point, index) => [index * UNIT, toY(point.futures)] as const);
 
-    const futuresPath = points
-      .map((point, index) => `${index === 0 ? "M" : "L"}${(index * UNIT).toFixed(2)},${toY(point.futures).toFixed(2)}`)
-      .join(" ");
-
-    const futuresReversed = points
-      .map((point, index) => [index * UNIT, toY(point.futures)] as const)
-      .reverse()
-      .map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`)
-      .join(" ");
+    const spotPath = spotXY.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+    const futuresPath = futuresXY.map(([x, y], i) => `${i === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
+    const futuresReversed = [...futuresXY].reverse().map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`).join(" ");
 
     spotPathRef.current?.setAttribute("d", spotPath);
     futuresPathRef.current?.setAttribute("d", futuresPath);
     gapPathRef.current?.setAttribute("d", `${spotPath} ${futuresReversed} Z`);
 
-    if (gridRef.current) {
-      const startIndex = totalCount - points.length;
-      const lines: string[] = [];
+    const [lastSpotX, lastSpotY] = spotXY[spotXY.length - 1];
+    const [lastFuturesX, lastFuturesY] = futuresXY[futuresXY.length - 1];
 
-      for (let i = 0; i < points.length; i++) {
-        if ((startIndex + i) % GRID_EVERY === 0) {
-          const x = (i * UNIT).toFixed(2);
-          lines.push(`<line x1="${x}" y1="0" x2="${x}" y2="${VIEW_HEIGHT}" stroke="#1f1f23" stroke-width="1" />`);
-        }
-      }
-
-      gridRef.current.innerHTML = lines.join("");
-    }
-  }
-
-  function updateDots(point: SpreadPoint, x: number, stepMs: number) {
-    if (spotDotRef.current) {
-      spotDotRef.current.style.transition = `transform ${stepMs * 0.9}ms ease-out`;
-      spotDotRef.current.style.transform = `translate(${x}px, ${toY(point.spot).toFixed(2)}px)`;
-    }
-
-    if (futuresDotRef.current) {
-      futuresDotRef.current.style.transition = `transform ${stepMs * 0.9}ms ease-out`;
-      futuresDotRef.current.style.transform = `translate(${x}px, ${toY(point.futures).toFixed(2)}px)`;
-    }
+    // Position is set on the wrapping <g> via the SVG attribute; the pulsing
+    // ring inside is positioned at local (0,0) and animates its own CSS
+    // transform (scale) via animate-ping. Putting both on the same element
+    // let the CSS animation's transform silently override the attribute
+    // transform each keyframe, which is what caused the detached ghost dot.
+    spotDotGroupRef.current?.setAttribute("transform", `translate(${lastSpotX.toFixed(2)},${lastSpotY.toFixed(2)})`);
+    futuresDotGroupRef.current?.setAttribute("transform", `translate(${lastFuturesX.toFixed(2)},${lastFuturesY.toFixed(2)})`);
   }
 
   function appendPoint(point: SpreadPoint) {
-    totalCountRef.current += 1;
-
     const now = Date.now();
     const stepMs =
       lastArrivalWallClockRef.current === null
@@ -148,10 +135,7 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
       plottedRef.current = plotted;
       setHasGeometry(plotted.length >= 2);
 
-      if (plotted.length >= 2) {
-        draw(plotted, totalCountRef.current);
-        updateDots(point, (plotted.length - 1) * UNIT, stepMs);
-      }
+      if (plotted.length >= 2) draw(plotted);
 
       return;
     }
@@ -160,8 +144,7 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
     animatingRef.current = true;
 
     const withNew = [...plotted, point];
-    draw(withNew, totalCountRef.current);
-    updateDots(point, PLOT_WIDTH, stepMs);
+    draw(withNew);
 
     const group = groupRef.current;
     const grid = gridRef.current;
@@ -202,7 +185,7 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
         grid.style.transform = "translateX(0px)";
       }
 
-      draw(trimmed, totalCountRef.current);
+      draw(trimmed);
       animatingRef.current = false;
     }, stepMs);
   }
@@ -219,7 +202,6 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
 
   useEffect(() => {
     plottedRef.current = [];
-    totalCountRef.current = 0;
     lastAppliedTimeRef.current = null;
     lastArrivalWallClockRef.current = null;
     animatingRef.current = false;
@@ -270,27 +252,32 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
           preserveAspectRatio="none"
           className={`h-full w-full overflow-hidden transition-opacity duration-300 ${hasGeometry ? "opacity-100" : "opacity-0"}`}
         >
-          {/* static horizontal reference lines */}
+          {/* static horizontal reference line */}
           <line x1={0} y1={VIEW_HEIGHT / 2} x2={PLOT_WIDTH} y2={VIEW_HEIGHT / 2} stroke="#1f1f23" strokeWidth={1} />
 
-          {/* moving vertical grid, synced to the same scroll as the data */}
-          <g ref={gridRef} />
+          {/* pre-built vertical grid, never regenerated — only ever slides */}
+          <g ref={gridRef}>
+            {GRID_LINE_X.map((x) => (
+              <line key={x} x1={x} y1={0} x2={x} y2={VIEW_HEIGHT} stroke="#1f1f23" strokeWidth={1} />
+            ))}
+          </g>
 
           <g ref={groupRef}>
             <path ref={gapPathRef} fill="rgba(168,85,247,0.18)" stroke="none" />
             <path ref={spotPathRef} fill="none" stroke="#3b82f6" strokeWidth={2} vectorEffect="non-scaling-stroke" />
             <path ref={futuresPathRef} fill="none" stroke="#facc15" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-          </g>
 
-          {/* pulsing live-value markers, pinned at the right edge */}
-          <g ref={spotDotRef}>
-            <circle r={9} fill="#3b82f6" fillOpacity={0.4} className="animate-ping" />
-            <circle r={4} fill="#3b82f6" />
-          </g>
+            {/* pulsing live-value markers — same coordinates as each path's
+                last vertex, so they can never drift from the line's end */}
+            <g ref={spotDotGroupRef}>
+              <circle r={9} fill="#3b82f6" fillOpacity={0.4} className="animate-ping" />
+              <circle r={4} fill="#3b82f6" />
+            </g>
 
-          <g ref={futuresDotRef}>
-            <circle r={9} fill="#facc15" fillOpacity={0.4} className="animate-ping" />
-            <circle r={4} fill="#facc15" />
+            <g ref={futuresDotGroupRef}>
+              <circle r={9} fill="#facc15" fillOpacity={0.4} className="animate-ping" />
+              <circle r={4} fill="#facc15" />
+            </g>
           </g>
         </svg>
 
