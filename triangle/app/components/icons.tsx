@@ -64,3 +64,12 @@ export function BoltIcon({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+export function TrendIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <rect x="3" y="3" width="18" height="18" rx="3" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M7 14l3-4 2.5 2.5L17 8" />
+    </svg>
+  );
+}

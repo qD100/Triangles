@@ -1,6 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import CoinIcon from "./CoinIcon";
+import { TrendIcon } from "../icons";
 
 export type Coin = {
   id: string;
@@ -46,11 +48,16 @@ export default function CoinRow({
   arbitrageGlow = "none",
   temporary = false,
 }: Props) {
+  const router = useRouter();
+
   return (
     <tr
+      onClick={() => router.push(`/coin/${coin.symbol.toLowerCase()}`)}
       className={`
+        group
         h-14
         sm:h-16
+        cursor-pointer
         border-b
         border-zinc-900
         transition-all
@@ -168,9 +175,13 @@ export default function CoinRow({
 
       {/* Market Cap */}
 
-      <td className="px-1.5 text-right text-[11px] text-zinc-300 whitespace-nowrap sm:px-4 sm:text-base">
+      <td className="relative px-1.5 text-right text-[11px] text-zinc-300 whitespace-nowrap sm:px-4 sm:text-base">
 
         {coin.market_cap > 0 ? formatCompactUsd(coin.market_cap) : "—"}
+
+        <span className="absolute right-1.5 top-1/2 hidden h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-[#1b1b1b] opacity-0 shadow-[0_0_8px_4px_rgba(27,27,27,0.9)] transition-opacity duration-150 group-hover:opacity-100 sm:flex sm:right-3">
+          <TrendIcon className="h-3.5 w-3.5 text-blue-400" />
+        </span>
 
       </td>
 
