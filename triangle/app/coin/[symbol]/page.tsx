@@ -6,6 +6,7 @@ import CoinIcon from "@/app/components/Market/CoinIcon";
 import { TriangleLogoIcon } from "@/app/components/icons";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
+import LivePosition from "./LivePosition";
 import useSpotFuturesTicker from "./useSpotFuturesTicker";
 
 type Snapshot = {
@@ -270,6 +271,12 @@ export default function CoinPage({
           connected={spotFutures.connected}
           current={spotFutures.current}
           history={spotFutures.history}
+        />
+
+        <LivePosition
+          symbol={upperSymbol}
+          connected={spotFutures.connected}
+          current={spotFutures.current}
         />
       </main>
 
