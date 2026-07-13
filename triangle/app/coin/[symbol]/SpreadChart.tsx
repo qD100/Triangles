@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SpreadPoint, SpreadRow } from "./useSpotFuturesTicker";
 
 type Props = {
@@ -14,9 +14,22 @@ const VIEW_WIDTH = 1000;
 const VIEW_HEIGHT = 360;
 const PAD_Y = 24;
 
+// Rolling window the chart displays, driven by wall-clock time rather than
+// point count — this is what makes it scroll continuously instead of
+// snapping every time a new sample lands.
+const WINDOW_MS = 2 * 60 * 1000;
+
+type Point = [number, number];
+
 function formatPrice(value: number) {
   const maximumFractionDigits = value >= 1 ? 2 : 6;
   return `$${value.toLocaleString(undefined, { maximumFractionDigits })}`;
+}
+
+function buildPath(points: Point[]) {
+  return points
+    .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+    .join(" ");
 }
 
 export default function SpreadChart({ symbol, connected, current, history }: Props) {
@@ -41,45 +54,68 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
     return () => clearTimeout(timer);
   }, [connected, current, symbol]);
 
-  const geometry = useMemo(() => {
-    if (history.length < 2) return null;
+  const historyRef = useRef<SpreadPoint[]>(history);
 
-    const values = history.flatMap((point) => [point.spot, point.futures]);
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const range = max - min || max * 0.001 || 1;
+  useEffect(() => {
+    historyRef.current = history;
+  }, [history]);
 
-    const xStep = VIEW_WIDTH / (history.length - 1);
+  const spotPathRef = useRef<SVGPathElement>(null);
+  const futuresPathRef = useRef<SVGPathElement>(null);
+  const gapPathRef = useRef<SVGPathElement>(null);
 
-    function toY(value: number) {
+  const [hasGeometry, setHasGeometry] = useState(false);
+
+  // Redraws every animation frame using the current wall-clock time, so the
+  // line continuously scrolls left in real time instead of jumping once a
+  // second when a new websocket sample arrives.
+  useEffect(() => {
+    let frame: number;
+
+    function draw() {
+      frame = requestAnimationFrame(draw);
+
+      const now = Date.now();
+      const windowStart = now - WINDOW_MS;
+      const points = historyRef.current.filter((point) => point.time >= windowStart);
+
+      if (points.length < 2) {
+        setHasGeometry((prev) => (prev ? false : prev));
+        return;
+      }
+
+      setHasGeometry((prev) => (prev ? prev : true));
+
+      const values = points.flatMap((point) => [point.spot, point.futures]);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      const range = max - min || max * 0.001 || 1;
       const usable = VIEW_HEIGHT - PAD_Y * 2;
-      return PAD_Y + usable - ((value - min) / range) * usable;
+
+      function toXY(time: number, value: number): Point {
+        const x = ((time - windowStart) / WINDOW_MS) * VIEW_WIDTH;
+        const y = PAD_Y + usable - ((value - min) / range) * usable;
+        return [x, y];
+      }
+
+      const spotPoints = points.map((point) => toXY(point.time, point.spot));
+      const futuresPoints = points.map((point) => toXY(point.time, point.futures));
+
+      const gapPath =
+        buildPath(spotPoints) +
+        " " +
+        [...futuresPoints].reverse().map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`).join(" ") +
+        " Z";
+
+      spotPathRef.current?.setAttribute("d", buildPath(spotPoints));
+      futuresPathRef.current?.setAttribute("d", buildPath(futuresPoints));
+      gapPathRef.current?.setAttribute("d", gapPath);
     }
 
-    const spotPoints = history.map((point, index) => [index * xStep, toY(point.spot)]);
-    const futuresPoints = history.map((point, index) => [index * xStep, toY(point.futures)]);
+    frame = requestAnimationFrame(draw);
 
-    const spotPath = spotPoints
-      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
-      .join(" ");
-
-    const futuresPath = futuresPoints
-      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
-      .join(" ");
-
-    const gapPath =
-      spotPoints
-        .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
-        .join(" ") +
-      " " +
-      [...futuresPoints]
-        .reverse()
-        .map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`)
-        .join(" ") +
-      " Z";
-
-    return { spotPath, futuresPath, gapPath };
-  }, [history]);
+    return () => cancelAnimationFrame(frame);
+  }, []);
 
   const spreadColor =
     current === null
@@ -115,19 +151,17 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
       </div>
 
       <div className="relative h-[380px] w-full sm:h-[460px]">
-        {geometry && (
-          <svg
-            viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
-            preserveAspectRatio="none"
-            className="h-full w-full"
-          >
-            <path d={geometry.gapPath} fill="rgba(168,85,247,0.18)" stroke="none" />
-            <path d={geometry.spotPath} fill="none" stroke="#3b82f6" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-            <path d={geometry.futuresPath} fill="none" stroke="#facc15" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-          </svg>
-        )}
+        <svg
+          viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
+          preserveAspectRatio="none"
+          className={`h-full w-full transition-opacity duration-300 ${hasGeometry ? "opacity-100" : "opacity-0"}`}
+        >
+          <path ref={gapPathRef} fill="rgba(168,85,247,0.18)" stroke="none" />
+          <path ref={spotPathRef} fill="none" stroke="#3b82f6" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+          <path ref={futuresPathRef} fill="none" stroke="#facc15" strokeWidth={2} vectorEffect="non-scaling-stroke" />
+        </svg>
 
-        {!geometry && !unsupported && (
+        {!hasGeometry && !unsupported && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-zinc-500">
             <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent" />
             Collecting live spread data…
