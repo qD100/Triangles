@@ -19,34 +19,6 @@ function formatPrice(value: number) {
   return `$${value.toLocaleString(undefined, { maximumFractionDigits })}`;
 }
 
-type Point = [number, number];
-
-// Catmull-Rom -> cubic Bezier: turns the discrete point series into a
-// continuous curve through every point, instead of straight segments.
-function smoothCurveCommands(points: Point[]): string {
-  let commands = "";
-
-  for (let i = 0; i < points.length - 1; i++) {
-    const p0 = points[i - 1] ?? points[i];
-    const p1 = points[i];
-    const p2 = points[i + 1];
-    const p3 = points[i + 2] ?? p2;
-
-    const cp1x = p1[0] + (p2[0] - p0[0]) / 6;
-    const cp1y = p1[1] + (p2[1] - p0[1]) / 6;
-    const cp2x = p2[0] - (p3[0] - p1[0]) / 6;
-    const cp2y = p2[1] - (p3[1] - p1[1]) / 6;
-
-    commands += ` C${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2[0].toFixed(2)},${p2[1].toFixed(2)}`;
-  }
-
-  return commands;
-}
-
-function smoothPath(points: Point[]): string {
-  return `M${points[0][0].toFixed(2)},${points[0][1].toFixed(2)}${smoothCurveCommands(points)}`;
-}
-
 export default function SpreadChart({ symbol, connected, current, history }: Props) {
   // If we've been connected a few seconds and never once seen this symbol
   // in a broadcast, it isn't a pair the spot/futures engine tracks (no
@@ -84,17 +56,26 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
       return PAD_Y + usable - ((value - min) / range) * usable;
     }
 
-    const spotPoints: Point[] = history.map((point, index) => [index * xStep, toY(point.spot)]);
-    const futuresPoints: Point[] = history.map((point, index) => [index * xStep, toY(point.futures)]);
-    const reversedFuturesPoints = [...futuresPoints].reverse();
+    const spotPoints = history.map((point, index) => [index * xStep, toY(point.spot)]);
+    const futuresPoints = history.map((point, index) => [index * xStep, toY(point.futures)]);
 
-    const spotPath = smoothPath(spotPoints);
-    const futuresPath = smoothPath(futuresPoints);
+    const spotPath = spotPoints
+      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+      .join(" ");
+
+    const futuresPath = futuresPoints
+      .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+      .join(" ");
 
     const gapPath =
-      spotPath +
-      ` L${reversedFuturesPoints[0][0].toFixed(2)},${reversedFuturesPoints[0][1].toFixed(2)}` +
-      smoothCurveCommands(reversedFuturesPoints) +
+      spotPoints
+        .map(([x, y], index) => `${index === 0 ? "M" : "L"}${x.toFixed(2)},${y.toFixed(2)}`)
+        .join(" ") +
+      " " +
+      [...futuresPoints]
+        .reverse()
+        .map(([x, y]) => `L${x.toFixed(2)},${y.toFixed(2)}`)
+        .join(" ") +
       " Z";
 
     return { spotPath, futuresPath, gapPath };
