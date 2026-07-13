@@ -7,6 +7,7 @@ import { TriangleLogoIcon } from "@/app/components/icons";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
+import SpotFuturesConditions, { DEFAULT_CONDITIONS, type Conditions } from "./SpotFuturesConditions";
 import useSpotFuturesTicker from "./useSpotFuturesTicker";
 
 type Snapshot = {
@@ -85,6 +86,7 @@ export default function CoinPage({
   const priceFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const spotFutures = useSpotFuturesTicker(upperSymbol);
+  const [conditions, setConditions] = useState<Conditions>(DEFAULT_CONDITIONS);
 
   const mountedAt = useRef(0);
   const [uptimeSeconds, setUptimeSeconds] = useState(0);
@@ -273,10 +275,13 @@ export default function CoinPage({
           history={spotFutures.history}
         />
 
+        <SpotFuturesConditions conditions={conditions} onChange={setConditions} />
+
         <LivePosition
           symbol={upperSymbol}
           connected={spotFutures.connected}
           current={spotFutures.current}
+          conditions={conditions}
         />
       </main>
 
