@@ -7,7 +7,7 @@ import { TriangleLogoIcon } from "@/app/components/icons";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
-import SpotFuturesConditions, { DEFAULT_CONDITIONS, type Conditions } from "./SpotFuturesConditions";
+import { DEFAULT_CONDITIONS, type Conditions } from "./PositionSettingsPanel";
 import useSpotFuturesTicker from "./useSpotFuturesTicker";
 
 type Snapshot = {
@@ -275,13 +275,12 @@ export default function CoinPage({
           history={spotFutures.history}
         />
 
-        <SpotFuturesConditions conditions={conditions} onChange={setConditions} />
-
         <LivePosition
           symbol={upperSymbol}
           connected={spotFutures.connected}
           current={spotFutures.current}
           conditions={conditions}
+          onConditionsChange={setConditions}
         />
       </main>
 

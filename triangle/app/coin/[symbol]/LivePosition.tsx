@@ -1,14 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { GearIcon } from "@/app/components/icons";
 import type { SpreadRow } from "./useSpotFuturesTicker";
-import type { Conditions } from "./SpotFuturesConditions";
+import PositionSettingsPanel, { type Conditions } from "./PositionSettingsPanel";
 
 type Props = {
   symbol: string;
   connected: boolean;
   current: SpreadRow | null;
   conditions: Conditions;
+  onConditionsChange: (next: Conditions) => void;
 };
 
 type Entry = {
@@ -44,11 +47,12 @@ function formatDuration(totalSeconds: number) {
   return `${minutes}m ${seconds}s`;
 }
 
-export default function LivePosition({ symbol, connected, current, conditions }: Props) {
+export default function LivePosition({ symbol, connected, current, conditions, onConditionsChange }: Props) {
   const [phase, setPhase] = useState<Phase>("scanning");
   const [entry, setEntry] = useState<Entry | null>(null);
   const [unsupported, setUnsupported] = useState(false);
   const [now, setNow] = useState(() => Date.now());
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // A new symbol has nothing to do with the previous one's position — reset
   // during render (state-adjustment-on-prop-change pattern) rather than in
@@ -98,30 +102,101 @@ export default function LivePosition({ symbol, connected, current, conditions }:
     setPhase("scanning");
   }
 
+  const bodyKey = unsupported && phase !== "open" ? "unsupported" : phase;
+
   return (
-    <section className="flex flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
-      <div className="border-b border-zinc-800 p-5">
-        <h2 className="text-xl font-bold tracking-wide text-emerald-400">LIVE POSITION</h2>
-        <p className="mt-1 text-sm text-zinc-500">Current Spot-Futures Arbitrage Position</p>
+    <section className="flex flex-col rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
+      <div className="relative border-b border-zinc-800 p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-bold tracking-wide text-emerald-400">LIVE POSITION</h2>
+            <p className="mt-1 text-sm text-zinc-500">Current Spot-Futures Arbitrage Position</p>
+          </div>
+
+          <button
+            type="button"
+            aria-label="Position settings"
+            onClick={() => setSettingsOpen((value) => !value)}
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-zinc-800 bg-[#181818] text-zinc-400 transition-colors hover:border-zinc-700 hover:text-white sm:h-9 sm:w-9"
+          >
+            <GearIcon />
+          </button>
+        </div>
+
+        {settingsOpen && (
+          <PositionSettingsPanel
+            conditions={conditions}
+            onUpdate={onConditionsChange}
+            onClose={() => setSettingsOpen(false)}
+          />
+        )}
       </div>
 
-      {unsupported && phase !== "open" && (
-        <div className="p-5 text-sm text-zinc-500">
-          No spot/futures position available for {symbol}
-          {" "}— this pair isn&apos;t on the futures monitor.
-        </div>
-      )}
+      <AnimatePresence mode="wait">
+        {bodyKey === "unsupported" && (
+          <motion.div
+            key="unsupported"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-5 text-sm text-zinc-500"
+          >
+            No spot/futures position available for {symbol}
+            {" "}— this pair isn&apos;t on the futures monitor.
+          </motion.div>
+        )}
 
-      {!unsupported && phase === "scanning" && (
-        <ScanningBody symbol={symbol} current={current} conditions={conditions} />
-      )}
+        {bodyKey === "scanning" && (
+          <motion.div
+            key="scanning"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ScanningBody symbol={symbol} current={current} conditions={conditions} />
+          </motion.div>
+        )}
 
-      {!unsupported && phase === "idle" && <IdleBody onResume={handleResume} />}
+        {bodyKey === "idle" && (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <IdleBody onResume={handleResume} />
+          </motion.div>
+        )}
 
-      {phase === "open" && entry && (
-        <OpenBody entry={entry} current={current} now={now} onReset={handleReset} />
-      )}
+        {bodyKey === "open" && entry && (
+          <motion.div
+            key="open"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.35, ease: "easeOut" }}
+          >
+            <OpenBody entry={entry} current={current} now={now} onReset={handleReset} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
+  );
+}
+
+function ScanSweep() {
+  return (
+    <div className="pointer-events-none absolute inset-0 overflow-hidden">
+      <motion.div
+        className="absolute inset-y-0 bg-gradient-to-r from-transparent via-emerald-400/10 to-transparent"
+        style={{ width: "45%" }}
+        animate={{ x: ["-100%", "300%"] }}
+        transition={{ duration: 2.8, repeat: Infinity, ease: "linear" }}
+      />
+    </div>
   );
 }
 
@@ -137,35 +212,41 @@ function ScanningBody({
   const statusLabel = conditions.autoEntry ? "Scanning..." : "Waiting for Entry...";
 
   return (
-    <div className="flex flex-col gap-4 p-5">
-      <div className="flex items-center gap-1.5">
-        <span
-          className={`h-1.5 w-1.5 rounded-full ${
-            conditions.autoEntry ? "bg-zinc-500 animate-pulse" : "bg-zinc-600"
-          }`}
-        />
-        <span className="text-[10px] font-semibold tracking-wider text-zinc-500">{statusLabel}</span>
+    <div className="flex flex-col">
+      <div className="relative flex h-28 items-center justify-center overflow-hidden border-b border-zinc-800 sm:h-32">
+        <ScanSweep />
+
+        <div className="relative z-10 flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              conditions.autoEntry ? "bg-emerald-400/80 animate-pulse" : "bg-zinc-600"
+            }`}
+          />
+          <span className="text-sm font-semibold tracking-wide text-zinc-300">{statusLabel}</span>
+        </div>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500">Current Spread ({symbol})</span>
-        <span className={`font-mono text-sm font-bold ${current ? pnlColor(current.spread_percent) : "text-zinc-500"}`}>
-          {current ? formatPercent(current.spread_percent) : "—"}
-        </span>
-      </div>
+      <div className="flex flex-col gap-4 p-5">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-zinc-500">Current Spread ({symbol})</span>
+          <span className={`font-mono text-sm font-bold ${current ? pnlColor(current.spread_percent) : "text-zinc-500"}`}>
+            {current ? formatPercent(current.spread_percent) : "—"}
+          </span>
+        </div>
 
-      <div className="flex items-center justify-between">
-        <span className="text-xs text-zinc-500">Current Net Profit</span>
-        <span className={`font-mono text-sm font-bold ${current ? pnlColor(current.net_percent) : "text-zinc-500"}`}>
-          {current ? formatPercent(current.net_percent) : "—"}
-        </span>
-      </div>
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-zinc-500">Current Expected Net Profit</span>
+          <span className={`font-mono text-sm font-bold ${current ? pnlColor(current.net_percent) : "text-zinc-500"}`}>
+            {current ? formatPercent(current.net_percent) : "—"}
+          </span>
+        </div>
 
-      <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
-        <span className="text-xs text-zinc-500">Condition</span>
-        <span className="font-mono text-xs text-zinc-400">
-          Spread ≥ {conditions.minSpreadPercent.toFixed(2)}% · Net ≥ {conditions.minNetProfitPercent.toFixed(2)}%
-        </span>
+        <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
+          <span className="text-xs text-zinc-500">Entry Conditions</span>
+          <span className="font-mono text-xs text-zinc-400">
+            Spread ≥ {conditions.minSpreadPercent.toFixed(2)}% · Net ≥ {conditions.minNetProfitPercent.toFixed(2)}%
+          </span>
+        </div>
       </div>
     </div>
   );
