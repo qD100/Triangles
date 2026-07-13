@@ -35,10 +35,13 @@ type Props = {
   symbol: string;
 };
 
+type Point = { time: number; value: number };
+
 export default function CoinChart({ symbol }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
+  const cacheRef = useRef<Map<string, Point[]>>(new Map());
 
   const [chartType, setChartType] = useState<ChartType>("price");
   const [range, setRange] = useState<Range>("1w");
@@ -80,50 +83,72 @@ export default function CoinChart({ symbol }: Props) {
     };
   }, []);
 
+  // Instant visual feedback on tab switch, independent of the data fetch below.
+  useEffect(() => {
+    seriesRef.current?.applyOptions({
+      lineColor: chartType === "price" ? "#3b82f6" : "#facc15",
+      topColor:
+        chartType === "price"
+          ? "rgba(59,130,246,0.35)"
+          : "rgba(250,204,21,0.35)",
+      bottomColor:
+        chartType === "price"
+          ? "rgba(59,130,246,0.02)"
+          : "rgba(250,204,21,0.02)",
+      priceFormat:
+        chartType === "marketcap"
+          ? { type: "custom", formatter: formatCompactUsd, minMove: 1 }
+          : { type: "price", precision: 2, minMove: 0.01 },
+    });
+  }, [chartType]);
+
   useEffect(() => {
     let cancelled = false;
+    const key = `${symbol}-${chartType}-${range}`;
 
-    async function load() {
-      setLoading(true);
+    function applyPoints(points: Point[]) {
+      if (!seriesRef.current) return;
+
+      if (points.length === 0) {
+        setEmpty(true);
+        return;
+      }
+
       setEmpty(false);
 
+      seriesRef.current.setData(
+        points.map((point) => ({
+          time: point.time as UTCTimestamp,
+          value: point.value,
+        }))
+      );
+
+      chartRef.current?.timeScale().fitContent();
+    }
+
+    const cached = cacheRef.current.get(key);
+
+    if (cached) {
+      applyPoints(cached);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setEmpty(false);
+
+    async function load() {
       try {
         const response = await fetch(
           `/api/coin/${symbol}/chart?type=${chartType}&range=${range}`
         );
         const data = await response.json();
-        const points: { time: number; value: number }[] = data.points ?? [];
+        const points: Point[] = data.points ?? [];
 
-        if (cancelled || !seriesRef.current) return;
+        if (cancelled) return;
 
-        if (points.length === 0) {
-          setEmpty(true);
-        } else {
-          seriesRef.current.setData(
-            points.map((point) => ({
-              time: point.time as UTCTimestamp,
-              value: point.value,
-            }))
-          );
-
-          seriesRef.current.applyOptions({
-            lineColor: chartType === "price" ? "#3b82f6" : "#facc15",
-            topColor:
-              chartType === "price"
-                ? "rgba(59,130,246,0.35)"
-                : "rgba(250,204,21,0.35)",
-            bottomColor:
-              chartType === "price"
-                ? "rgba(59,130,246,0.02)"
-                : "rgba(250,204,21,0.02)",
-            priceFormat:
-              chartType === "marketcap"
-                ? { type: "custom", formatter: formatCompactUsd, minMove: 1 }
-                : { type: "price", precision: 2, minMove: 0.01 },
-          });
-
-          chartRef.current?.timeScale().fitContent();
-        }
+        cacheRef.current.set(key, points);
+        applyPoints(points);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -187,8 +212,9 @@ export default function CoinChart({ symbol }: Props) {
         <div ref={containerRef} className="h-full w-full" />
 
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#111111]/60 text-sm text-zinc-500">
-            Loading chart…
+          <div className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full border border-zinc-800 bg-[#181818]/90 px-2.5 py-1 text-[10px] text-zinc-500">
+            <span className="h-3 w-3 animate-spin rounded-full border-2 border-zinc-600 border-t-transparent" />
+            Loading…
           </div>
         )}
 

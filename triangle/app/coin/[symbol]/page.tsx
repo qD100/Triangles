@@ -62,6 +62,8 @@ export default function CoinPage({
   );
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
+  const [livePrice, setLivePrice] = useState<number | null>(null);
+  const [livePercent24h, setLivePercent24h] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +81,8 @@ export default function CoinPage({
 
     load();
 
+    // 30D/1Y/volume/market cap don't move fast; price/24H come live over
+    // the websocket below. This poll is just a slow-moving fallback/refresh.
     const interval = setInterval(load, 30_000);
 
     return () => {
@@ -87,7 +91,40 @@ export default function CoinPage({
     };
   }, [symbol]);
 
+  useEffect(() => {
+    if (upperSymbol === "USDT") return;
+
+    let socket: WebSocket | null = null;
+    let closedByUs = false;
+
+    function connect() {
+      socket = new WebSocket(
+        `wss://stream.binance.com:9443/ws/${upperSymbol.toLowerCase()}usdt@ticker`
+      );
+
+      socket.onmessage = (event) => {
+        const ticker = JSON.parse(event.data);
+
+        setLivePrice(Number(ticker.c));
+        setLivePercent24h(Number(ticker.P));
+      };
+
+      socket.onclose = () => {
+        if (!closedByUs) setTimeout(connect, 3000);
+      };
+    }
+
+    connect();
+
+    return () => {
+      closedByUs = true;
+      socket?.close();
+    };
+  }, [upperSymbol]);
+
   const displayName = snapshot?.name ?? seedCoin?.name ?? upperSymbol;
+  const displayPrice = livePrice ?? snapshot?.price ?? null;
+  const displayPercent24h = livePercent24h ?? snapshot?.percentChange24h ?? null;
 
   return (
     <>
@@ -131,12 +168,16 @@ export default function CoinPage({
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Stat label="Price" value={formatPrice(snapshot?.price ?? null)} />
+            <Stat
+              label="Price"
+              value={formatPrice(displayPrice)}
+              live={livePrice !== null}
+            />
 
             <Stat
               label="24H"
-              value={formatPercent(snapshot?.percentChange24h ?? null)}
-              className={percentColor(snapshot?.percentChange24h ?? null)}
+              value={formatPercent(displayPercent24h)}
+              className={percentColor(displayPercent24h)}
             />
 
             <Stat
@@ -177,15 +218,18 @@ function Stat({
   label,
   value,
   className = "text-white",
+  live = false,
 }: {
   label: string;
   value: string;
   className?: string;
+  live?: boolean;
 }) {
   return (
     <div className="rounded-lg border border-zinc-800 bg-[#181818] p-3">
-      <div className="text-[10px] uppercase tracking-wider text-zinc-500 sm:text-[11px]">
+      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-zinc-500 sm:text-[11px]">
         {label}
+        {live && <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />}
       </div>
       <div className={`mt-1 font-mono text-sm font-bold sm:text-lg ${className}`}>
         {value}

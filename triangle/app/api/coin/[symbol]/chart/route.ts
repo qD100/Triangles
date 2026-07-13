@@ -19,6 +19,21 @@ const GECKO_DAYS: Record<Range, string> = {
   all: "max",
 };
 
+const MAX_POINTS = 500;
+
+function downsample<T>(points: T[], maxPoints: number): T[] {
+  if (points.length <= maxPoints) return points;
+
+  const step = points.length / maxPoints;
+  const result: T[] = [];
+
+  for (let i = 0; i < maxPoints; i++) {
+    result.push(points[Math.floor(i * step)]);
+  }
+
+  return result;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ symbol: string }> }
@@ -80,7 +95,7 @@ export async function GET(
   const data = await response.json();
   const marketCaps: [number, number][] = data.market_caps ?? [];
 
-  const points = marketCaps.map(([timestamp, value]) => ({
+  const points = downsample(marketCaps, MAX_POINTS).map(([timestamp, value]) => ({
     time: Math.floor(timestamp / 1000),
     value,
   }));
