@@ -1,10 +1,12 @@
 "use client";
 
-import { use, useEffect, useRef, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import CoinIcon from "@/app/components/Market/CoinIcon";
 import { TriangleLogoIcon } from "@/app/components/icons";
-import ArbitrageLauncher from "@/app/components/ArbitrageLauncher";
+import ArbitrageLauncher, { LAST_SPOTFUTURES_SYMBOL_KEY } from "@/app/components/ArbitrageLauncher";
+import CoinSelector, { type SelectableCoin } from "@/app/components/CoinSelector";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
@@ -74,9 +76,22 @@ export default function CoinPage({
 }) {
   const { symbol } = use(params);
   const upperSymbol = symbol.toUpperCase();
+  const router = useRouter();
 
-  const seedCoin = initialCoins.find(
-    (coin) => coin.symbol.toUpperCase() === upperSymbol
+  const selectableCoins: SelectableCoin[] = useMemo(
+    () =>
+      initialCoins.map((coin) => {
+        const coinSymbol = coin.symbol.toUpperCase();
+
+        return {
+          id: coinSymbol,
+          symbol: coinSymbol,
+          name: coin.name,
+          rank: coin.market_cap_rank,
+          icon: <CoinIcon symbol={coinSymbol} size={40} />,
+        };
+      }),
+    []
   );
 
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null);
@@ -88,6 +103,20 @@ export default function CoinPage({
 
   const spotFutures = useSpotFuturesTicker(upperSymbol);
   const [conditions, setConditions] = useState<Conditions>(DEFAULT_CONDITIONS);
+
+  // Switching the active instrument (via the header selector, a market-table
+  // row, or a direct link) shouldn't let the previous coin's price/snapshot
+  // flash under the new coin's identity for a moment — reset during render
+  // (state-adjustment-on-prop-change pattern) rather than in an effect.
+  const [trackedSymbol, setTrackedSymbol] = useState(upperSymbol);
+
+  if (upperSymbol !== trackedSymbol) {
+    setTrackedSymbol(upperSymbol);
+    setSnapshot(null);
+    setLivePrice(null);
+    setLivePercent24h(null);
+    setPriceFlash(null);
+  }
 
   const mountedAt = useRef(0);
   const [uptimeSeconds, setUptimeSeconds] = useState(0);
@@ -131,6 +160,12 @@ export default function CoinPage({
   useEffect(() => {
     if (upperSymbol === "USDT") return;
 
+    // Reset the flash-comparison baseline here (effect-scoped, tied to this
+    // websocket's own lifecycle) rather than during render — otherwise the
+    // first tick after switching coins would compare the new coin's price
+    // against the previous coin's last price and fire a bogus flash.
+    prevPriceRef.current = null;
+
     let socket: WebSocket | null = null;
     let closedByUs = false;
 
@@ -169,7 +204,21 @@ export default function CoinPage({
     };
   }, [upperSymbol]);
 
-  const displayName = snapshot?.name ?? seedCoin?.name ?? upperSymbol;
+  // Remembers the active instrument for the current browser session, so
+  // re-entering the terminal (e.g. via the Arbitrage Launcher) reopens it
+  // instead of always defaulting back to Bitcoin.
+  useEffect(() => {
+    try {
+      window.sessionStorage.setItem(LAST_SPOTFUTURES_SYMBOL_KEY, upperSymbol);
+    } catch {
+      // sessionStorage can be unavailable (e.g. private browsing) — not critical
+    }
+  }, [upperSymbol]);
+
+  function handleCoinSelect(coin: SelectableCoin) {
+    router.replace(`/coin/${coin.symbol.toLowerCase()}`);
+  }
+
   const displayPrice = livePrice ?? snapshot?.price ?? null;
   const displayPercent24h = livePercent24h ?? snapshot?.percentChange24h ?? null;
 
@@ -193,26 +242,11 @@ export default function CoinPage({
 
       <main className="mx-auto flex w-full max-w-[1400px] flex-1 flex-col gap-4 p-3 sm:gap-6 sm:p-6">
         <section className="rounded-xl border border-zinc-800 bg-[#111111] p-4 shadow-2xl shadow-black/40 sm:p-6">
-          <div className="flex items-center gap-3">
-            <CoinIcon symbol={upperSymbol} size={44} />
-
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-white sm:text-2xl">
-                  {displayName}
-                </h1>
-                <span className="text-sm uppercase tracking-wide text-zinc-500">
-                  {upperSymbol}
-                </span>
-              </div>
-
-              {seedCoin && (
-                <div className="text-xs text-zinc-600">
-                  Rank #{seedCoin.market_cap_rank}
-                </div>
-              )}
-            </div>
-          </div>
+          <CoinSelector
+            coins={selectableCoins}
+            selectedId={upperSymbol}
+            onSelect={handleCoinSelect}
+          />
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
             <Stat

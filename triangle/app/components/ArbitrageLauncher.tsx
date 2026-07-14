@@ -10,8 +10,27 @@ export type ArbitrageTool = {
   title: string;
   description: string;
   icon: ComponentType<{ className?: string }>;
-  route: string;
+  // A plain string for a fixed destination, or a function resolved at click
+  // time for a tool that should remember where you left it (e.g. Spot /
+  // Futures reopens whichever coin you last had selected there).
+  route: string | (() => string);
 };
+
+// Session-persisted instrument for the Spot/Futures terminal — read here so
+// the launcher's tile reopens the coin you last had selected there, not
+// always Bitcoin. Written by the coin page itself on every symbol change.
+export const LAST_SPOTFUTURES_SYMBOL_KEY = "spotfutures:lastSymbol";
+
+function resolveSpotFuturesRoute() {
+  if (typeof window === "undefined") return "/coin/btc";
+
+  try {
+    const stored = window.sessionStorage.getItem(LAST_SPOTFUTURES_SYMBOL_KEY);
+    return `/coin/${(stored ?? "btc").toLowerCase()}`;
+  } catch {
+    return "/coin/btc";
+  }
+}
 
 // Adding a new scanner is just appending one entry here — the launcher
 // renders its grid from this list, nothing else needs to change.
@@ -28,7 +47,7 @@ export const ARBITRAGE_TOOLS: ArbitrageTool[] = [
     title: "Spot / Futures",
     description: "Cash-and-carry opportunities",
     icon: TargetIcon,
-    route: "/coin/btc",
+    route: resolveSpotFuturesRoute,
   },
 ];
 
@@ -59,9 +78,9 @@ export default function ArbitrageLauncher() {
     };
   }, [open]);
 
-  function select(route: string) {
+  function select(tool: ArbitrageTool) {
     setOpen(false);
-    router.push(route);
+    router.push(typeof tool.route === "function" ? tool.route() : tool.route);
   }
 
   return (
@@ -95,7 +114,7 @@ export default function ArbitrageLauncher() {
 
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
               {ARBITRAGE_TOOLS.map((tool) => (
-                <ToolCard key={tool.id} tool={tool} onSelect={() => select(tool.route)} />
+                <ToolCard key={tool.id} tool={tool} onSelect={() => select(tool)} />
               ))}
             </div>
           </motion.div>
