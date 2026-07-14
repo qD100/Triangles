@@ -188,33 +188,30 @@ export default function LivePosition({ symbol, connected, current, conditions, o
 }
 
 // A honeycomb of triangles — fitting for "Triangle Terminal" — tessellated
-// via alternating up/down triangle strips per row. Each cell fades on its
-// own randomized (but stable, computed once at module load) cycle via a
-// plain CSS keyframe rather than a JS-driven loop per triangle, so this
-// stays cheap regardless of how many cells are on screen. The faint stroke
-// stays constant (the "connected" honeycomb structure); only fill-opacity
-// pulses (the scanning shimmer).
+// via alternating up/down triangle strips per row. Rather than each cell
+// fading on its own random cycle (reads as a diffuse cloud), every cell
+// shares the same pulse duration and its delay is derived purely from its
+// x-position, so a single wavefront of light sweeps left-to-right through
+// the grid on a loop — the same directional motion as the original sweep
+// animation, just expressed through discrete triangles instead of a
+// gradient bar. Driven by a shared CSS @keyframes (not framer-motion per
+// triangle), so this stays cheap regardless of how many cells are on
+// screen — the browser runs it natively instead of ~80 concurrent JS loops.
+// The faint stroke stays constant (the "connected" honeycomb structure);
+// only fill-opacity pulses.
 const HONEYCOMB_COLS = 14;
 const HONEYCOMB_ROWS = 3;
 const HONEYCOMB_WIDTH = 900;
 const HONEYCOMB_HEIGHT = 130;
+const HONEYCOMB_SWEEP_SECONDS = 3.2;
 
 type HoneycombTriangle = {
   points: string;
-  duration: number;
   delay: number;
 };
 
-// A plain Math.random() here would compute different values during server
-// rendering vs. client hydration (two separate module evaluations), causing
-// a hydration mismatch. This is a deterministic stand-in — same inputs
-// always produce the same "random-looking" value, so server and client
-// agree. Row/col get distinct large, mutually-prime-ish multipliers rather
-// than a sequential counter — consecutive integers fed through a sin-based
-// hash decorrelate poorly and read as visible banding, not scattered shimmer.
-function pseudoRandom(a: number, b: number, c: number) {
-  const x = Math.sin(a * 127.1 + b * 311.7 + c * 74.7) * 43758.5453;
-  return x - Math.floor(x);
+function delayForX(centerX: number): number {
+  return (centerX / HONEYCOMB_WIDTH) * HONEYCOMB_SWEEP_SECONDS;
 }
 
 function buildHoneycomb(): HoneycombTriangle[] {
@@ -233,8 +230,7 @@ function buildHoneycomb(): HoneycombTriangle[] {
 
       triangles.push({
         points: `${xLeft},${y1} ${xRight},${y1} ${xMid},${y0}`,
-        duration: 2.4 + pseudoRandom(row, col, 1) * 1.8,
-        delay: pseudoRandom(row, col, 2) * 4,
+        delay: delayForX(xMid),
       });
     }
 
@@ -245,8 +241,7 @@ function buildHoneycomb(): HoneycombTriangle[] {
 
       triangles.push({
         points: `${xLeft},${y0} ${xRight},${y0} ${xMid},${y1}`,
-        duration: 2.4 + pseudoRandom(row, col, 3) * 1.8,
-        delay: pseudoRandom(row, col, 4) * 4,
+        delay: delayForX(xMid),
       });
     }
   }
@@ -281,7 +276,7 @@ function ScanHoneycomb() {
             // decimal time values when it parses the server HTML, so an
             // untruncated JS float string mismatches what it stored.
             animationName: "honeycomb-pulse",
-            animationDuration: `${tri.duration.toFixed(3)}s`,
+            animationDuration: `${HONEYCOMB_SWEEP_SECONDS.toFixed(3)}s`,
             animationTimingFunction: "ease-in-out",
             animationDelay: `${tri.delay.toFixed(3)}s`,
             animationIterationCount: "infinite",
