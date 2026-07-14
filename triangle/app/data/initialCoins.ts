@@ -1,5 +1,8 @@
 import type { Coin } from "@/app/components/types/crypto";
 
+// Ranks are real CoinGecko market_cap_rank values (checked against the live
+// /coins/markets endpoint), not sequential position in this list — coins not
+// tracked here (USDC #5, etc.) leave gaps, which is expected.
 export const initialCoins: Coin[] = [
   {
     id: "bitcoin",
@@ -42,16 +45,6 @@ export const initialCoins: Coin[] = [
     price_change_percentage_24h: 0,
   },
   {
-    id: "solana",
-    name: "Solana",
-    symbol: "SOL",
-    image: "/coins/sol.png",
-    current_price: 0,
-    market_cap: 0,
-    market_cap_rank: 5,
-    price_change_percentage_24h: 0,
-  },
-  {
     id: "xrp",
     name: "XRP",
     symbol: "XRP",
@@ -62,23 +55,13 @@ export const initialCoins: Coin[] = [
     price_change_percentage_24h: 0,
   },
   {
-    id: "dogecoin",
-    name: "Dogecoin",
-    symbol: "DOGE",
-    image: "/coins/doge.png",
+    id: "solana",
+    name: "Solana",
+    symbol: "SOL",
+    image: "/coins/sol.png",
     current_price: 0,
     market_cap: 0,
     market_cap_rank: 7,
-    price_change_percentage_24h: 0,
-  },
-  {
-    id: "cardano",
-    name: "Cardano",
-    symbol: "ADA",
-    image: "/coins/ada.png",
-    current_price: 0,
-    market_cap: 0,
-    market_cap_rank: 8,
     price_change_percentage_24h: 0,
   },
   {
@@ -88,7 +71,7 @@ export const initialCoins: Coin[] = [
     image: "/coins/trx.png",
     current_price: 0,
     market_cap: 0,
-    market_cap_rank: 9,
+    market_cap_rank: 8,
     price_change_percentage_24h: 0,
   },
   {
@@ -99,6 +82,26 @@ export const initialCoins: Coin[] = [
     current_price: 0,
     market_cap: 0,
     market_cap_rank: 10,
+    price_change_percentage_24h: 0,
+  },
+  {
+    id: "dogecoin",
+    name: "Dogecoin",
+    symbol: "DOGE",
+    image: "/coins/doge.png",
+    current_price: 0,
+    market_cap: 0,
+    market_cap_rank: 11,
+    price_change_percentage_24h: 0,
+  },
+  {
+    id: "zcash",
+    name: "Zcash",
+    symbol: "ZEC",
+    image: "/coins/zec.png",
+    current_price: 0,
+    market_cap: 0,
+    market_cap_rank: 14,
     price_change_percentage_24h: 0,
   },
 ];

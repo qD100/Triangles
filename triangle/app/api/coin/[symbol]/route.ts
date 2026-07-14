@@ -8,9 +8,9 @@ export const SYMBOL_TO_COINGECKO_ID: Record<string, string> = {
   SOL: "solana",
   XRP: "ripple",
   DOGE: "dogecoin",
-  ADA: "cardano",
   TRX: "tron",
   HYPE: "hyperliquid",
+  ZEC: "zcash",
 };
 
 export async function GET(
