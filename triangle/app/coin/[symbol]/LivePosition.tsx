@@ -197,8 +197,9 @@ export default function LivePosition({ symbol, connected, current, conditions, o
 // gradient bar. Driven by a shared CSS @keyframes (not framer-motion per
 // triangle), so this stays cheap regardless of how many cells are on
 // screen — the browser runs it natively instead of ~80 concurrent JS loops.
-// The faint stroke stays constant (the "connected" honeycomb structure);
-// only fill-opacity pulses.
+// Both fill and stroke sit at 0 opacity outside the wave, so only the
+// travelling band of triangles is ever visible — the rest of the grid is
+// fully invisible, not just faint.
 const HONEYCOMB_COLS = 14;
 const HONEYCOMB_ROWS = 3;
 const HONEYCOMB_WIDTH = 900;
@@ -263,11 +264,12 @@ function ScanHoneycomb() {
           key={index}
           points={tri.points}
           fill="#34d399"
-          stroke="rgba(52,211,153,0.1)"
+          stroke="#34d399"
           strokeWidth={0.75}
           vectorEffect="non-scaling-stroke"
           style={{
-            fillOpacity: 0.06,
+            fillOpacity: 0,
+            strokeOpacity: 0,
             // Longhand properties, not the `animation` shorthand: browsers
             // expand shorthand style attributes into longhands when parsing
             // server-rendered HTML, which otherwise reads as a hydration
