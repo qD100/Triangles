@@ -4,6 +4,7 @@ import { use, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import CoinIcon from "@/app/components/Market/CoinIcon";
 import { TriangleLogoIcon } from "@/app/components/icons";
+import ArbitrageLauncher from "@/app/components/ArbitrageLauncher";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
@@ -175,7 +176,9 @@ export default function CoinPage({
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#111111]/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-3 px-3 sm:h-16 sm:px-6 lg:px-8">
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8">
+          <ArbitrageLauncher />
+
           <Link
             href="/"
             className="flex items-center gap-2 text-sm font-semibold text-zinc-400 transition-colors hover:text-white"

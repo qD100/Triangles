@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { GearIcon, ExpandIcon, CollapseIcon, TriangleLogoIcon } from "./icons";
 import SettingsPanel from "./SettingsPanel";
+import ArbitrageLauncher from "./ArbitrageLauncher";
 import type { ScannerSettings } from "./hooks/useArbitrage";
 
 type Props = {
@@ -73,6 +74,8 @@ export default function Header({
         {/* LEFT */}
 
         <div className="flex items-center gap-2 sm:gap-3">
+          <ArbitrageLauncher />
+
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 sm:h-10 sm:w-10">
             <TriangleLogoIcon className="h-4 w-4 sm:h-5 sm:w-5" />
           </div>

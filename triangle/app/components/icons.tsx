@@ -81,3 +81,28 @@ export function ChevronDownIcon({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+export function GridIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <circle cx="5" cy="5" r="2.1" />
+      <circle cx="12" cy="5" r="2.1" />
+      <circle cx="19" cy="5" r="2.1" />
+      <circle cx="5" cy="12" r="2.1" />
+      <circle cx="12" cy="12" r="2.1" />
+      <circle cx="19" cy="12" r="2.1" />
+      <circle cx="5" cy="19" r="2.1" />
+      <circle cx="12" cy="19" r="2.1" />
+      <circle cx="19" cy="19" r="2.1" />
+    </svg>
+  );
+}
+
+export function TargetIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <circle cx="12" cy="12" r="8.5" />
+      <circle cx="12" cy="12" r="3.2" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
