@@ -249,7 +249,7 @@ export default function Roulette() {
                   <span
                     key={n}
                     className="rl-wheel-label"
-                    style={{ transform: `rotate(${angle}deg) translate(0, -108px) rotate(${-angle}deg)` }}
+                    style={{ transform: `rotate(${angle}deg) translate(0, -146px) rotate(${-angle}deg)` }}
                   >
                     {n}
                   </span>
@@ -392,7 +392,7 @@ const CSS = `
 .rl-inline-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
 .rl-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
 
-.rl-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; }
+.rl-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; justify-content: center; align-items: center; }
 
 .rl-history-panel { flex: 0 0 260px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; min-height: 0; }
 .rl-history-panel-title { color: var(--text); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; flex-shrink: 0; }
@@ -404,10 +404,10 @@ const CSS = `
 
 .rl-wheel-wrap { flex: 0 0 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 10px; }
 .rl-pointer { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 14px solid var(--gold); margin-bottom: -4px; z-index: 2; }
-.rl-wheel-outer { position: relative; width: 240px; height: 240px; border-radius: 50%; border: 4px solid var(--panel-alt); box-shadow: 0 0 0 1px var(--border); }
+.rl-wheel-outer { position: relative; width: 320px; height: 320px; border-radius: 50%; border: 4px solid var(--panel-alt); box-shadow: 0 0 0 1px var(--border); }
 .rl-wheel { position: absolute; inset: 0; border-radius: 50%; }
-.rl-wheel-label { position: absolute; top: 50%; left: 50%; font-size: 8px; color: #E6EDF3cc; font-family: 'JetBrains Mono', monospace; transform-origin: 0 0; }
-.rl-wheel-hub { position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; border-radius: 50%; background: var(--bg); border: 2px solid var(--gold); }
+.rl-wheel-label { position: absolute; top: 50%; left: 50%; font-size: 10px; color: #E6EDF3cc; font-family: 'JetBrains Mono', monospace; transform-origin: 0 0; }
+.rl-wheel-hub { position: absolute; inset: 0; margin: auto; width: 60px; height: 60px; border-radius: 50%; background: var(--bg); border: 2px solid var(--gold); }
 .rl-winning-badge { margin-top: 14px; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 15px; border: 2px solid var(--border); }
 .rl-winning-badge.red { background: #B91C1C; }
 .rl-winning-badge.black { background: #161B22; }

@@ -61,7 +61,7 @@ const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minu
 
 const DEFAULT_BOARD_W = 820;
 const DEFAULT_BOARD_H = 480;
-const STEP_MS = 190;
+const STEP_MS = 235; // per-row fall duration base (higher = slower drop)
 const DROP_STAGGER_MS = 90; // launch gap between balls in the same round
 
 export default function Plinko() {
