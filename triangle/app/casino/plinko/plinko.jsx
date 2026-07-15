@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
-import { ShieldCheck, Check, Copy } from "lucide-react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
+import Matter from "matter-js";
+import { ShieldCheck, Check, Copy, Volume2, VolumeX } from "lucide-react";
+import * as physics from "./plinkoPhysics";
 
 /* ---------------------------------------------------------------
    Same provably-fair engine as Mines/Roulette:
@@ -12,6 +14,15 @@ import { ShieldCheck, Check, Copy } from "lucide-react";
    One server seed is committed per round; every ball in that round derives
    its own path from the same seed via a distinct nonce (nonce, nonce+1, ...),
    so a multi-ball round stays fully verifiable after the seed is revealed.
+
+   The board below now runs *real* physics (gravity/restitution/friction via
+   matter-js, see ./plinkoPhysics.js) for how a ball falls and bounces —
+   but the bucket it ends up in is still decided by derivePath() below,
+   before the ball ever starts moving. Physics only controls how the fall
+   looks; it can never change who wins. See plinkoPhysics.js's header
+   comment for the full guided-physics/safety-net design, and
+   verify_plinko_fairness.js (run during development) for a 5,400-round
+   headless proof that the two never disagree.
 ------------------------------------------------------------------*/
 const toHex = (buf) => Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 async function sha256Hex(str) {
@@ -61,8 +72,61 @@ const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minu
 
 const DEFAULT_BOARD_W = 820;
 const DEFAULT_BOARD_H = 480;
-const STEP_MS = 235; // per-row fall duration base (higher = slower drop)
 const DROP_STAGGER_MS = 90; // launch gap between balls in the same round
+const PEG_TICK_BALL_THRESHOLD = 15; // above this many balls, per-peg-hit ticks would wall-of-noise
+
+/* ================= SOUND (synthesized, no audio files) =================
+   Short procedural tones via Web Audio oscillators + gain envelopes —
+   avoids sourcing/licensing external audio assets entirely. Lazily
+   created/resumed on first user gesture (the Drop button) to respect
+   browser autoplay policy. Every call is wrapped so a synthesis failure
+   can never interrupt gameplay. */
+let audioCtx = null;
+function getAudioContext() {
+  if (typeof window === "undefined") return null;
+  try {
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return null;
+    if (!audioCtx) audioCtx = new Ctx();
+    if (audioCtx.state === "suspended") audioCtx.resume().catch(() => {});
+    return audioCtx;
+  } catch {
+    return null;
+  }
+}
+
+function playTone({ freq, duration, type = "sine", volume = 0.12, freqEnd = null }) {
+  try {
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, ctx.currentTime);
+    if (freqEnd) osc.frequency.exponentialRampToValueAtTime(Math.max(freqEnd, 1), ctx.currentTime + duration);
+    gain.gain.setValueAtTime(volume, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch {
+    // synthesis must never break the drop flow
+  }
+}
+
+const sound = {
+  drop: () => playTone({ freq: 320, freqEnd: 160, duration: 0.15, type: "sine", volume: 0.07 }),
+  pegHit: () => playTone({ freq: 750 + Math.random() * 500, duration: 0.035, type: "square", volume: 0.04 }),
+  land: (multiplier) =>
+    playTone({
+      freq: 380 + Math.min(multiplier, 60) * 14,
+      freqEnd: 700 + Math.min(multiplier, 60) * 20,
+      duration: 0.16,
+      type: "triangle",
+      volume: 0.1,
+    }),
+};
 
 export default function Plinko() {
   const [balance, setBalance] = useState(1000);
@@ -72,6 +136,7 @@ export default function Plinko() {
   const [ballCount, setBallCount] = useState(10);
   const [clientSeed, setClientSeed] = useState("player-seed-0001");
   const [nonce, setNonce] = useState(0);
+  const [muted, setMuted] = useState(false);
 
   const [phase, setPhase] = useState("idle"); // idle | dropping | result
   const [serverSeed, setServerSeed] = useState(null);
@@ -79,7 +144,6 @@ export default function Plinko() {
   const [verified, setVerified] = useState(null);
   const [copied, setCopied] = useState(false);
 
-  const [balls, setBalls] = useState([]); // [{id, x, y, visible}]
   const [bucketCounts, setBucketCounts] = useState([]);
   const [lastRoundProfit, setLastRoundProfit] = useState(null);
   const [history, setHistory] = useState([]); // per-round: {id, ballCount, profit}
@@ -90,16 +154,26 @@ export default function Plinko() {
   const [highestMultiplier, setHighestMultiplier] = useState(0);
 
   const busy = useRef(false);
-  const timers = useRef([]);
   const roundIdRef = useRef(1);
+  const mutedRef = useRef(muted);
+  useEffect(() => { mutedRef.current = muted; }, [muted]);
 
   const table = TABLES[rows][risk];
 
   // The board fills whatever space its wrapper gives it (flex layout, full
   // viewport) rather than a fixed pixel size — measured via ResizeObserver
-  // so pin/ball geometry stays correct at any screen size.
+  // so pin/ball geometry stays correct at any screen size. A round in
+  // progress locks its own snapshot (roundStateRef.boardWidth/Height) so a
+  // mid-round resize can't reposition physics bodies out from under a
+  // ball in flight; the next round picks up whatever size is current.
   const boardWrapRef = useRef(null);
+  const canvasRef = useRef(null);
   const [boardSize, setBoardSize] = useState({ width: DEFAULT_BOARD_W, height: DEFAULT_BOARD_H });
+  const boardSizeRef = useRef(boardSize);
+  useEffect(() => { boardSizeRef.current = boardSize; }, [boardSize]);
+
+  const rowsRef = useRef(rows);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -118,34 +192,161 @@ export default function Plinko() {
     return () => observer.disconnect();
   }, []);
 
-  const slot = boardSize.width / (rows + 2);
+  // Current round's physics world + ball bookkeeping. Null while idle.
+  // A plain mutable ref (not React state) since it's mutated every animation
+  // frame — driving it through setState would mean 100 re-renders/second.
+  const roundStateRef = useRef(null);
 
-  const posForStep = useCallback((r, rightsSoFar) => {
-    const x = boardSize.width / 2 + (2 * rightsSoFar - r) * (slot / 2);
-    const y = 8 + (r / (rows + 1)) * (boardSize.height - 36);
-    return { x, y };
-  }, [rows, slot, boardSize]);
+  const applyBallSettlement = useCallback((def) => {
+    const mult = table[def.bucket];
+    const payout = +(def.bet * mult).toFixed(8);
 
-  const clearTimers = () => { timers.current.forEach((t) => (t.cancel ? t.cancel() : clearTimeout(t))); timers.current = []; };
+    setBalance((b) => +(b + payout).toFixed(8));
+    setBucketCounts((counts) => {
+      const next = [...counts];
+      next[def.bucket] = (next[def.bucket] ?? 0) + 1;
+      return next;
+    });
+    setHighestMultiplier((h) => Math.max(h, mult));
+    if (!mutedRef.current) sound.land(mult);
 
-  // Easing: y uses ease-in (accelerating, like gravity), x uses ease-out-back
-  // (slight overshoot then settle, like a real bounce off a peg).
-  const easeInQuad = (t) => t * t;
-  const easeOutBack = (t) => {
-    const c1 = 1.70158, c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
-  };
-  const lerp = (a, b, t) => a + (b - a) * t;
+    return payout;
+  }, [table]);
+
+  const finalizeRound = useCallback((roundState) => {
+    const netProfit = +(roundState.profitAccum - roundState.totalBet).toFixed(8);
+    setHistory((h) => [
+      { id: roundIdRef.current++, bet: roundState.totalBet, ballCount: roundState.totalBalls, profit: netProfit, time: nowClock() },
+      ...h,
+    ].slice(0, 30));
+    setTotalBallsDropped((t) => t + roundState.totalBalls);
+    setTotalProfit((t) => +(t + netProfit).toFixed(8));
+    setLastRoundProfit(netProfit);
+    setPhase("result");
+    busy.current = false;
+  }, []);
+
+  // Single persistent render/physics loop for the component's lifetime —
+  // reads live values via refs (boardSizeRef/rowsRef/roundStateRef) rather
+  // than restarting on every state change, since restarting would tear
+  // down an in-flight round's animation.
+  useEffect(() => {
+    let rafId;
+    let lastTime = performance.now();
+
+    const loop = (now) => {
+      const deltaMs = Math.min(now - lastTime, 100); // clamp a tab-throttle spike
+      lastTime = now;
+
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const ctx = canvas.getContext("2d");
+        const roundState = roundStateRef.current;
+        const size = roundState
+          ? { width: roundState.boardWidth, height: roundState.boardHeight }
+          : boardSizeRef.current;
+        const rows = roundState ? roundState.rows : rowsRef.current;
+
+        let ballsToDraw = [];
+
+        if (roundState && roundState.finalized) {
+          // Round already finished — keep drawing the settled balls resting
+          // in their buckets (matching the pre-canvas version's behavior)
+          // instead of the board going blank the instant the round ends.
+          // The next dropBalls() call replaces this ref outright, so there's
+          // nothing left to step or check here.
+          ballsToDraw = roundState.active.map((e) => ({
+            x: e.body.position.x, y: e.body.position.y, settled: true,
+          }));
+        } else if (roundState) {
+          roundState.elapsedMs += deltaMs;
+
+          const stillPending = [];
+          for (const def of roundState.pending) {
+            if (roundState.elapsedMs >= def.spawnDelayMs) {
+              const body = physics.spawnBall(Matter, roundState.world, {
+                id: def.id, bits: def.bits, bucket: def.bucket, boardWidth: size.width, rows,
+              });
+              roundState.active.push({ body, def, spawnedAtMs: roundState.elapsedMs, settledHandled: false });
+            } else {
+              stillPending.push(def);
+            }
+          }
+          roundState.pending = stillPending;
+
+          const beforeNudges = roundState.active.map((e) => e.body.plugin.lastNudgedRow);
+          roundState.step(deltaMs);
+
+          if (ballCountForSound(roundState.totalBalls) && !mutedRef.current) {
+            roundState.active.forEach((e, i) => {
+              if (e.body.plugin.lastNudgedRow > beforeNudges[i]) sound.pegHit();
+            });
+          }
+
+          for (const entry of roundState.active) {
+            if (entry.settledHandled) continue;
+            const elapsedSinceSpawn = roundState.elapsedMs - entry.spawnedAtMs;
+            const justSettled = physics.checkSettle(Matter, entry.body, {
+              rows, boardHeight: size.height, elapsedMs: elapsedSinceSpawn,
+            });
+            if (justSettled) {
+              entry.settledHandled = true;
+              const payout = applyBallSettlement(entry.def);
+              roundState.profitAccum += payout;
+            }
+          }
+
+          ballsToDraw = roundState.active.map((e) => ({
+            x: e.body.position.x, y: e.body.position.y, settled: e.body.plugin.settled,
+          }));
+
+          if (
+            roundState.pending.length === 0 &&
+            roundState.active.length === roundState.totalBalls &&
+            roundState.active.every((e) => e.settledHandled)
+          ) {
+            finalizeRound(roundState);
+            roundState.finalized = true;
+          }
+        }
+
+        drawBoard(ctx, {
+          boardWidth: size.width,
+          boardHeight: size.height,
+          pegs: physics.buildPegLayout(rows, size.width, size.height),
+          balls: ballsToDraw,
+        });
+      }
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    rafId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(rafId);
+  }, [applyBallSettlement, finalizeRound]);
+
+  // Canvas backing-store resolution follows the wrapper size (and device
+  // pixel ratio) so it isn't blurry on high-DPI screens; drawBoard() always
+  // draws in CSS-pixel coordinates via the transform set here.
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+    canvas.width = Math.round(boardSize.width * dpr);
+    canvas.height = Math.round(boardSize.height * dpr);
+    const ctx = canvas.getContext("2d");
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }, [boardSize]);
 
   const dropBalls = useCallback(async () => {
     const totalBet = +(bet * ballCount).toFixed(8);
     if (busy.current || bet <= 0 || totalBet > balance) return;
     busy.current = true;
-    clearTimers();
     setPhase("dropping");
     setVerified(null);
     setLastRoundProfit(null);
     setBucketCounts(new Array(table.length).fill(0));
+    if (!mutedRef.current) sound.drop();
 
     const seed = randomSeed();
     const hash = await sha256Hex(seed);
@@ -154,110 +355,36 @@ export default function Plinko() {
     setBalance((b) => +(b - totalBet).toFixed(8));
 
     const startNonce = nonce;
+    const lockedSize = boardSizeRef.current;
 
-    // Precompute every ball's full path + timing up front (deterministic,
-    // derived from the committed seed) so the animation loop below only
-    // has to interpolate, not branch on async state.
     const ballDefs = await Promise.all(
       Array.from({ length: ballCount }, async (_, i) => {
         const rollHash = await hmacSha256Hex(seed, `${clientSeed}:${startNonce + i}`);
         const p = derivePath(rollHash, rows);
-
-        const waypoints = [{ x: boardSize.width / 2, y: 8 }];
-        let rightsSoFar = 0;
-        for (let r = 1; r <= rows; r++) {
-          rightsSoFar += p.bits[r - 1];
-          waypoints.push(posForStep(r, rightsSoFar));
-        }
-        const durations = Array.from({ length: rows }, (_, r2) => Math.max(95, STEP_MS * Math.pow(0.93, r2)));
-        const cumStart = [0];
-        durations.forEach((d) => cumStart.push(cumStart[cumStart.length - 1] + d));
-
-        return {
-          id: i,
-          bucket: p.bucket,
-          waypoints,
-          durations,
-          cumStart,
-          totalDuration: cumStart[cumStart.length - 1],
-          startDelay: i * DROP_STAGGER_MS,
-          landed: false,
-        };
+        return { id: i, bits: p.bits, bucket: p.bucket, bet, spawnDelayMs: i * DROP_STAGGER_MS };
       })
     );
 
     setNonce((n) => n + ballCount);
-    setBalls(ballDefs.map((b) => ({ id: b.id, x: b.waypoints[0].x, y: b.waypoints[0].y, visible: false })));
 
-    const roundStart = performance.now();
-    let profitAccum = 0;
-    let rafId;
+    const { engine } = physics.createWorld(Matter, {
+      rows, boardWidth: lockedSize.width, boardHeight: lockedSize.height,
+    });
 
-    const frame = (now) => {
-      const elapsed = now - roundStart;
-      let allDone = true;
-      const bucketDelta = new Array(table.length).fill(0);
-      let frameBalanceDelta = 0;
-      let frameMaxMult = 0;
-
-      const nextPositions = ballDefs.map((b) => {
-        if (b.landed) {
-          const last = b.waypoints[b.waypoints.length - 1];
-          return { id: b.id, x: last.x, y: last.y, visible: true, landed: true };
-        }
-
-        const localElapsed = elapsed - b.startDelay;
-        if (localElapsed < 0) {
-          allDone = false;
-          return { id: b.id, x: b.waypoints[0].x, y: b.waypoints[0].y, visible: false, landed: false };
-        }
-
-        if (localElapsed >= b.totalDuration) {
-          b.landed = true;
-          const mult = table[b.bucket];
-          const payout = +(bet * mult).toFixed(8);
-          profitAccum += payout;
-          frameBalanceDelta += payout;
-          bucketDelta[b.bucket] += 1;
-          frameMaxMult = Math.max(frameMaxMult, mult);
-          const last = b.waypoints[b.waypoints.length - 1];
-          return { id: b.id, x: last.x, y: last.y, visible: true, landed: true };
-        }
-
-        allDone = false;
-        let seg = 0;
-        while (seg < b.durations.length - 1 && localElapsed >= b.cumStart[seg + 1]) seg++;
-        const segT = Math.min(1, (localElapsed - b.cumStart[seg]) / b.durations[seg]);
-        const from = b.waypoints[seg], to = b.waypoints[seg + 1];
-        const x = lerp(from.x, to.x, easeOutBack(segT));
-        const y = lerp(from.y, to.y, easeInQuad(segT));
-        const wobble = Math.sin((elapsed + b.id * 37) / 45) * 1.4 * (1 - segT);
-        return { id: b.id, x: x + wobble, y, visible: true, landed: false };
-      });
-
-      setBalls(nextPositions);
-      if (frameBalanceDelta > 0) setBalance((bal) => +(bal + frameBalanceDelta).toFixed(8));
-      if (bucketDelta.some((n) => n > 0)) {
-        setBucketCounts((counts) => counts.map((c, i) => c + bucketDelta[i]));
-      }
-      if (frameMaxMult > 0) setHighestMultiplier((h) => Math.max(h, frameMaxMult));
-
-      if (!allDone) {
-        rafId = requestAnimationFrame(frame);
-      } else {
-        const netProfit = +(profitAccum - totalBet).toFixed(8);
-        setHistory((h) => [{ id: roundIdRef.current++, bet: totalBet, ballCount, profit: netProfit, time: nowClock() }, ...h].slice(0, 30));
-        setTotalBallsDropped((t) => t + ballCount);
-        setTotalProfit((t) => +(t + netProfit).toFixed(8));
-        setLastRoundProfit(netProfit);
-        setPhase("result");
-        busy.current = false;
-      }
+    roundStateRef.current = {
+      world: engine.world,
+      step: physics.createStepper(Matter, engine),
+      elapsedMs: 0,
+      pending: ballDefs,
+      active: [],
+      totalBalls: ballCount,
+      totalBet,
+      profitAccum: 0,
+      rows,
+      boardWidth: lockedSize.width,
+      boardHeight: lockedSize.height,
     };
-
-    rafId = requestAnimationFrame(frame);
-    timers.current.push({ cancel: () => cancelAnimationFrame(rafId) });
-  }, [bet, balance, ballCount, clientSeed, nonce, rows, table, posForStep, boardSize]);
+  }, [bet, balance, ballCount, clientSeed, nonce, rows, table]);
 
   const verify = async () => {
     if (!serverSeed) return;
@@ -277,7 +404,6 @@ export default function Plinko() {
   const roundOver = phase === "result";
   const controlsDisabled = phase === "dropping";
   const totalBet = +(bet * ballCount).toFixed(8);
-  const pinRows = useMemo(() => Array.from({ length: rows }, (_, i) => i + 1), [rows]);
 
   return (
     <div className="pk-root">
@@ -289,9 +415,19 @@ export default function Plinko() {
           <span className="pk-brand-name">DEEPFIELD</span>
           <span className="pk-brand-tag">plinko · provably fair</span>
         </div>
-        <div className="pk-wallet">
-          <span className="pk-wallet-label">sBTC balance</span>
-          <span className="pk-wallet-value">{fmt(balance)}</span>
+        <div className="pk-topbar-right">
+          <button
+            type="button"
+            className="pk-mute-btn"
+            aria-label={muted ? "Unmute" : "Mute"}
+            onClick={() => setMuted((m) => !m)}
+          >
+            {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
+          </button>
+          <div className="pk-wallet">
+            <span className="pk-wallet-label">sBTC balance</span>
+            <span className="pk-wallet-value">{fmt(balance)}</span>
+          </div>
         </div>
       </div>
 
@@ -353,22 +489,7 @@ export default function Plinko() {
         <div className="pk-board-wrap">
           <div className="pk-board-measure" ref={boardWrapRef}>
             <div className="pk-board" style={{ width: boardSize.width, height: boardSize.height }}>
-              {pinRows.map((r) => {
-                const count = r + 2;
-                const y = 8 + (r / (rows + 1)) * (boardSize.height - 36);
-                return Array.from({ length: count }, (_, i) => {
-                  const spacing = boardSize.width / (count + 1);
-                  const x = spacing * (i + 1);
-                  return <span key={`${r}-${i}`} className="pk-pin" style={{ left: x, top: y }} />;
-                });
-              })}
-              {balls.map((b) => (
-                <div
-                  key={b.id}
-                  className={`pk-ball ${b.landed ? "pk-ball-landed" : ""}`}
-                  style={{ transform: `translate3d(${b.x - 6}px, ${b.y - 6}px, 0)`, opacity: b.visible ? 1 : 0 }}
-                />
-              ))}
+              <canvas ref={canvasRef} className="pk-board-canvas" />
             </div>
           </div>
 
@@ -389,7 +510,7 @@ export default function Plinko() {
           <div className={`pk-payout-msg ${roundOver && lastRoundProfit !== null ? (lastRoundProfit >= 0 ? "good" : "bad") : ""}`}>
             {roundOver && lastRoundProfit !== null
               ? `${ballCount} ball${ballCount > 1 ? "s" : ""} dropped — ${lastRoundProfit >= 0 ? "+" : ""}${fmt(lastRoundProfit)} this round`
-              : " "}
+              : " "}
           </div>
         </div>
 
@@ -470,6 +591,50 @@ export default function Plinko() {
   );
 }
 
+function ballCountForSound(totalBalls) {
+  return totalBalls <= PEG_TICK_BALL_THRESHOLD;
+}
+
+/* ================= CANVAS RENDERING ================= */
+function drawBoard(ctx, { boardWidth, boardHeight, pegs, balls }) {
+  ctx.clearRect(0, 0, boardWidth, boardHeight);
+
+  const bg = ctx.createRadialGradient(
+    boardWidth / 2, boardHeight * 0.25, 10,
+    boardWidth / 2, boardHeight * 0.25, Math.max(boardWidth, boardHeight) * 0.85
+  );
+  bg.addColorStop(0, "#171d26");
+  bg.addColorStop(1, "#0c1017");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, boardWidth, boardHeight);
+
+  for (const peg of pegs) {
+    const grad = ctx.createRadialGradient(peg.x - 1.2, peg.y - 1.2, 0.3, peg.x, peg.y, physics.PEG_RADIUS);
+    grad.addColorStop(0, "#d7dee6");
+    grad.addColorStop(0.55, "#8a93a0");
+    grad.addColorStop(1, "#3c4550");
+    ctx.beginPath();
+    ctx.arc(peg.x, peg.y, physics.PEG_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+  }
+
+  for (const ball of balls) {
+    ctx.save();
+    ctx.shadowColor = "rgba(240,180,41,0.8)";
+    ctx.shadowBlur = ball.settled ? 16 : 9;
+    const grad = ctx.createRadialGradient(ball.x - 2, ball.y - 2.2, 0.5, ball.x, ball.y, physics.BALL_RADIUS);
+    grad.addColorStop(0, "#fff8e1");
+    grad.addColorStop(0.45, "#f7cb5e");
+    grad.addColorStop(1, "#b9790f");
+    ctx.beginPath();
+    ctx.arc(ball.x, ball.y, physics.BALL_RADIUS, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
@@ -491,6 +656,9 @@ const CSS = `
 .pk-brand-mark { color: var(--gold); font-size: 16px; }
 .pk-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
 .pk-brand-tag { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
+.pk-topbar-right { display: flex; align-items: center; gap: 10px; }
+.pk-mute-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
+.pk-mute-btn:hover { color: var(--text); border-color: #454f5c; }
 .pk-wallet { text-align: right; }
 .pk-wallet-label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
 .pk-wallet-value { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; color: var(--gold); }
@@ -517,10 +685,7 @@ const CSS = `
 .pk-board-wrap { flex: 1.3; display: flex; flex-direction: column; align-items: center; min-height: 0; min-width: 0; }
 .pk-board-measure { width: 100%; flex: 1 1 auto; min-height: 0; max-width: 1100px; max-height: 100%; position: relative; }
 .pk-board { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; contain: layout paint; }
-.pk-pin { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); transform: translate(-50%, -50%); opacity: 0.6; }
-.pk-ball { position: absolute; top: 0; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px 2px #F0B42988; will-change: transform; }
-.pk-ball-landed { animation: pk-ball-land 260ms ease-out; }
-@keyframes pk-ball-land { 0% { filter: brightness(1); } 35% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
+.pk-board-canvas { display: block; width: 100%; height: 100%; }
 .pk-buckets { display: flex; gap: 2px; margin-top: 6px; max-width: 1100px; flex-shrink: 0; }
 .pk-bucket { flex: 1; text-align: center; font-size: 10px; padding: 6px 0; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-weight: 600; background: var(--panel-alt); color: var(--muted); border: 1px solid var(--border); }
 .pk-bucket.lo { color: #6b7280; }
