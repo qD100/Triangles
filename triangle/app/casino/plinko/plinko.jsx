@@ -380,19 +380,17 @@ export default function Plinko() {
             ))}
           </div>
 
-          {bucketCounts.length > 0 && (
-            <div className="pk-bucket-counts" style={{ width: boardSize.width }}>
-              {bucketCounts.map((c, i) => (
-                <div key={i} className="pk-bucket-count mono">{c}</div>
-              ))}
-            </div>
-          )}
+          <div className="pk-bucket-counts" style={{ width: boardSize.width }}>
+            {table.map((_, i) => (
+              <div key={i} className="pk-bucket-count mono">{bucketCounts[i] ?? 0}</div>
+            ))}
+          </div>
 
-          {roundOver && lastRoundProfit !== null && (
-            <div className={`pk-payout-msg ${lastRoundProfit >= 0 ? "good" : "bad"}`}>
-              {ballCount} ball{ballCount > 1 ? "s" : ""} dropped — {lastRoundProfit >= 0 ? "+" : ""}{fmt(lastRoundProfit)} this round
-            </div>
-          )}
+          <div className={`pk-payout-msg ${roundOver && lastRoundProfit !== null ? (lastRoundProfit >= 0 ? "good" : "bad") : ""}`}>
+            {roundOver && lastRoundProfit !== null
+              ? `${ballCount} ball${ballCount > 1 ? "s" : ""} dropped — ${lastRoundProfit >= 0 ? "+" : ""}${fmt(lastRoundProfit)} this round`
+              : " "}
+          </div>
         </div>
 
         <div className="pk-panel">
@@ -531,7 +529,7 @@ const CSS = `
 .pk-bucket.landed { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .pk-bucket-counts { display: flex; gap: 2px; margin-top: 3px; max-width: 1100px; flex-shrink: 0; }
 .pk-bucket-count { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
-.pk-payout-msg { margin-top: 10px; font-size: 12px; padding: 4px 12px; border-radius: 6px; flex-shrink: 0; }
+.pk-payout-msg { margin-top: 10px; font-size: 12px; padding: 4px 12px; border-radius: 6px; flex-shrink: 0; box-sizing: border-box; height: 26px; background: transparent; }
 .pk-payout-msg.good { background: #2DD4BF22; }
 .pk-payout-msg.bad { background: var(--danger-dim); }
 
