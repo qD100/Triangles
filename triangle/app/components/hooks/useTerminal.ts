@@ -46,14 +46,9 @@ export default function useTerminal() {
 
   const eventTimestamps = useRef<number[]>([]);
   const lastEventId = useRef<string | null>(null);
-  const mountedAt = useRef<number>(0);
 
   const [opportunitiesPerMin, setOpportunitiesPerMin] = useState(0);
   const [uptimeSeconds, setUptimeSeconds] = useState(0);
-
-  useEffect(() => {
-    mountedAt.current = Date.now();
-  }, []);
 
   useEffect(() => {
     const latest = arbitrage.scannerEvents[0];
@@ -64,6 +59,11 @@ export default function useTerminal() {
     }
   }, [arbitrage.scannerEvents]);
 
+  // Uptime is derived from the backend's own start time (received once over
+  // the websocket), not this page's mount time — a refresh shows the
+  // engine's true uptime instead of resetting to zero. serverStartedAt is
+  // set once per server process lifetime, so this effect re-running when it
+  // arrives (null -> real value) is the only time it ever changes.
   useEffect(() => {
     const interval = setInterval(() => {
       const cutoff = Date.now() - 60_000;
@@ -73,11 +73,14 @@ export default function useTerminal() {
       );
 
       setOpportunitiesPerMin(eventTimestamps.current.length);
-      setUptimeSeconds(Math.floor((Date.now() - mountedAt.current) / 1000));
+
+      if (arbitrage.serverStartedAt !== null) {
+        setUptimeSeconds(Math.floor((Date.now() - arbitrage.serverStartedAt) / 1000));
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [arbitrage.serverStartedAt]);
 
   const uptime = useMemo(() => formatDuration(uptimeSeconds), [uptimeSeconds]);
 

@@ -1,32 +1,19 @@
 "use client";
 
 import { useState } from "react";
-
-export type Conditions = {
-  minSpreadPercent: number;
-  minNetProfitPercent: number;
-  autoEntry: boolean;
-  autoResetAfterClose: boolean;
-};
-
-export const DEFAULT_CONDITIONS: Conditions = {
-  minSpreadPercent: 1,
-  minNetProfitPercent: 0.5,
-  autoEntry: true,
-  autoResetAfterClose: true,
-};
+import type { SpotFuturesConditions } from "./useSpotFuturesTicker";
 
 type Props = {
-  conditions: Conditions;
-  onUpdate: (next: Conditions) => void;
+  conditions: SpotFuturesConditions;
+  onUpdate: (next: SpotFuturesConditions) => void;
   onClose: () => void;
 };
 
 export default function PositionSettingsPanel({ conditions, onUpdate, onClose }: Props) {
-  const [minSpread, setMinSpread] = useState(String(conditions.minSpreadPercent));
-  const [minNetProfit, setMinNetProfit] = useState(String(conditions.minNetProfitPercent));
-  const [autoEntry, setAutoEntry] = useState(conditions.autoEntry);
-  const [autoResetAfterClose, setAutoResetAfterClose] = useState(conditions.autoResetAfterClose);
+  const [minSpread, setMinSpread] = useState(String(conditions.min_spread_percent));
+  const [minNetProfit, setMinNetProfit] = useState(String(conditions.min_net_profit_percent));
+  const [autoEntry, setAutoEntry] = useState(conditions.auto_entry);
+  const [autoResetAfterClose, setAutoResetAfterClose] = useState(conditions.auto_reset_after_close);
 
   function apply() {
     const spread = Number(minSpread);
@@ -35,10 +22,10 @@ export default function PositionSettingsPanel({ conditions, onUpdate, onClose }:
     if (Number.isNaN(spread) || Number.isNaN(netProfit)) return;
 
     onUpdate({
-      minSpreadPercent: spread,
-      minNetProfitPercent: netProfit,
-      autoEntry,
-      autoResetAfterClose,
+      min_spread_percent: spread,
+      min_net_profit_percent: netProfit,
+      auto_entry: autoEntry,
+      auto_reset_after_close: autoResetAfterClose,
     });
 
     onClose();
@@ -51,7 +38,8 @@ export default function PositionSettingsPanel({ conditions, onUpdate, onClose }:
       </div>
 
       <p className="mt-1 text-xs text-zinc-500">
-        Applied live to the Spot/Futures paper trading engine.
+        Applied live to the Spot/Futures paper trading engine — shared across
+        every connected viewer, not just this browser.
       </p>
 
       <div className="mt-4 space-y-3">

@@ -2,6 +2,8 @@ import requests
 import pandas as pd
 import time
 import asyncio
+import json
+import collections
 from datetime import datetime
 import os
 
@@ -48,6 +50,31 @@ VALID_PAIRS1 = [
     "XRPUSDT", "TRXUSDT", "HYPEUSDT", "DOGEUSDT",
     "ZECUSDT"
 ]
+
+
+# ================= PERSISTENT ENGINE STATE =================
+# Lives in this process, not in any one browser tab — survives page
+# refreshes and new connections. Only resets on an actual server restart.
+
+SPOTFUTURES_STARTED_AT = time.time() * 1000  # ms epoch, matches JS Date.now()
+CHART_HISTORY_LIMIT = 500
+
+# symbol -> deque of {"time", "spot", "futures"}, oldest first.
+price_history = collections.defaultdict(lambda: collections.deque(maxlen=CHART_HISTORY_LIMIT))
+
+DEFAULT_CONDITIONS = {
+    "min_spread_percent": 1.0,
+    "min_net_profit_percent": 0.5,
+    "auto_entry": True,
+    "auto_reset_after_close": True,
+}
+conditions = dict(DEFAULT_CONDITIONS)
+
+# symbol -> {"phase": "scanning" | "open" | "idle", "entry": {...} | None}
+# One shared paper position per symbol, evaluated every tick for every
+# tracked symbol regardless of what any client is currently viewing — this
+# is what makes it a real background engine instead of only-updates-when-watched.
+positions = {}
 
 
 # ================= WEBSOCKET BROADCAST =================
@@ -186,6 +213,77 @@ def find_opportunities(spot, futures, funding=None):
     return [row for row in get_all_spreads(spot, futures, funding) if row["is_opportunity"]]
 
 
+# ================= PAPER TRADING ENGINE =================
+# Ported from the frontend's LivePosition.tsx — the backend is now the
+# source of truth, the frontend just displays whatever this produces.
+
+def evaluate_positions(all_spreads):
+    for row in all_spreads:
+        symbol = row["symbol"]
+        state = positions.setdefault(symbol, {"phase": "scanning", "entry": None})
+
+        if (
+            state["phase"] == "scanning"
+            and conditions["auto_entry"]
+            and row["spread_percent"] >= conditions["min_spread_percent"]
+            and row["net_percent"] >= conditions["min_net_profit_percent"]
+        ):
+            state["phase"] = "open"
+            state["entry"] = {
+                "spot": row["spot"],
+                "futures": row["futures"],
+                "time": time.time() * 1000,
+                "spread": row["spread_percent"],
+            }
+
+
+def reset_position(symbol):
+    state = positions.setdefault(symbol, {"phase": "scanning", "entry": None})
+    state["entry"] = None
+    state["phase"] = "scanning" if conditions["auto_reset_after_close"] else "idle"
+
+
+async def handle_client_message(websocket, raw_message):
+    try:
+        payload = json.loads(raw_message)
+    except ValueError:
+        return
+
+    msg_type = payload.get("type")
+
+    if msg_type == "subscribe":
+        symbol = f"{payload.get('symbol', '').upper()}USDT"
+
+        await websocket.send_json({
+            "type": "history",
+            "symbol": payload.get("symbol", "").upper(),
+            "points": list(price_history.get(symbol, [])),
+            "positions": positions,
+            "conditions": conditions,
+        })
+
+    elif msg_type == "update_conditions":
+        if "min_spread_percent" in payload:
+            conditions["min_spread_percent"] = float(payload["min_spread_percent"])
+
+        if "min_net_profit_percent" in payload:
+            conditions["min_net_profit_percent"] = float(payload["min_net_profit_percent"])
+
+        if "auto_entry" in payload:
+            conditions["auto_entry"] = bool(payload["auto_entry"])
+
+        if "auto_reset_after_close" in payload:
+            conditions["auto_reset_after_close"] = bool(payload["auto_reset_after_close"])
+
+        await broadcast_opportunity({"type": "conditions", "conditions": conditions})
+
+    elif msg_type == "reset_position":
+        symbol = f"{payload.get('symbol', '').upper()}USDT"
+        reset_position(symbol)
+
+        await broadcast_opportunity({"type": "positions", "positions": positions})
+
+
 # ================= EXCEL =================
 
 def update_live(df):
@@ -268,6 +366,18 @@ def scan_loop():
             funding = get_funding_rates()
 
             all_spreads = get_all_spreads(spot, futures, funding)
+
+            now_ms = time.time() * 1000
+
+            for row in all_spreads:
+                price_history[row["symbol"]].append({
+                    "time": now_ms,
+                    "spot": row["spot"],
+                    "futures": row["futures"],
+                })
+
+            evaluate_positions(all_spreads)
+
             opps = [row for row in all_spreads if row["is_opportunity"]]
 
             excel_df = pd.DataFrame([
@@ -294,6 +404,8 @@ def scan_loop():
                 "type": "status",
                 "time": datetime.now().strftime("%H:%M:%S"),
                 "pairs": all_spreads,
+                "positions": positions,
+                "conditions": conditions,
             })
 
         except Exception as e:
@@ -327,9 +439,15 @@ if __name__ == "__main__":
         clients.append(websocket)
         print("[spotfutures] Website connected")
 
+        await websocket.send_json({
+            "type": "init",
+            "started_at": SPOTFUTURES_STARTED_AT,
+        })
+
         try:
             while True:
-                await websocket.receive_text()
+                message = await websocket.receive_text()
+                await handle_client_message(websocket, message)
         except WebSocketDisconnect:
             clients.remove(websocket)
             print("[spotfutures] Website disconnected")

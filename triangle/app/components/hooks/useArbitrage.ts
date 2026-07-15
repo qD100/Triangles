@@ -23,6 +23,10 @@ export type ScannerSettings = {
   minProfitPercent: number;
 };
 
+// Retained server-side too (same cap) — this is now how much history a
+// fresh connection catches up on, not just how much we render.
+const MAX_EVENTS = 500;
+
 type IncomingMessage =
   | (ArbitrageEvent & { type: "arbitrage" })
   | {
@@ -37,6 +41,12 @@ type IncomingMessage =
       type: "settings";
       fee_percent: number;
       min_profit_percent: number;
+    }
+  | {
+      type: "init";
+      started_at: number;
+      events: ArbitrageEvent[];
+      best_profit: number;
     };
 
 export default function useArbitrage() {
@@ -64,6 +74,11 @@ export default function useArbitrage() {
     feePercent: 0.1,
     minProfitPercent: 0.05,
   });
+
+  // Origin for the uptime clock — the backend's own start time, not this
+  // page's mount time, so a refresh shows the engine's true uptime instead
+  // of resetting to zero.
+  const [serverStartedAt, setServerStartedAt] = useState<number | null>(null);
 
   const [statistics, setStatistics] = useState({
     totalDetected: 0,
@@ -101,6 +116,17 @@ export default function useArbitrage() {
 
       const data: IncomingMessage = JSON.parse(message.data);
 
+      if (data.type === "init") {
+        setServerStartedAt(data.started_at);
+        setScannerEvents(data.events.slice(0, MAX_EVENTS));
+        setStatistics((previous) => ({
+          ...previous,
+          bestProfit: data.best_profit,
+        }));
+
+        return;
+      }
+
       if (data.type === "settings") {
         setSettings({
           feePercent: data.fee_percent,
@@ -128,7 +154,7 @@ export default function useArbitrage() {
 
       setScannerEvents((previous) => [
         data,
-        ...previous.slice(0, 29),
+        ...previous.slice(0, MAX_EVENTS - 1),
       ]);
 
       animateGlow(data.route);
@@ -217,6 +243,8 @@ export default function useArbitrage() {
     scanStatus,
 
     settings,
+
+    serverStartedAt,
 
     updateSettings,
   };

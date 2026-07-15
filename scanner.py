@@ -6,6 +6,7 @@ import os
 import asyncio
 import json
 import threading
+import collections
 
 import uvicorn
 
@@ -29,6 +30,15 @@ settings = {
     "fee_percent": 0.10,
     "min_profit_percent": 0.05,
 }
+
+# Persistent background-engine state — survives page refreshes and new
+# connections because it lives in this process, not in any one browser tab.
+# Only resets on an actual server restart.
+SCANNER_STARTED_AT = time.time() * 1000  # ms epoch, matches JS Date.now()
+EVENTS_HISTORY_LIMIT = 500
+
+events_history = collections.deque(maxlen=EVENTS_HISTORY_LIMIT)
+best_profit = 0.0
 
 LIVE_FILE = "live.xlsx"
 LOG_FILE = "log.xlsx"
@@ -65,6 +75,17 @@ async def arbitrage_websocket(websocket: WebSocket):
 
     print("Website connected")
 
+    # Snapshot of persistent engine state, sent once so a fresh page load
+    # (or refresh) catches up instantly instead of starting from zero.
+    await websocket.send_json({
+        "type": "init",
+        "started_at": SCANNER_STARTED_AT,
+        # Newest first, matching the order the frontend already keeps its
+        # live-appended event list in.
+        "events": list(reversed(events_history)),
+        "best_profit": best_profit,
+    })
+
     await websocket.send_json({"type": "settings", **settings})
 
     try:
@@ -100,9 +121,15 @@ async def spotfutures_websocket(websocket: WebSocket):
 
     print("[spotfutures] Website connected")
 
+    await websocket.send_json({
+        "type": "init",
+        "started_at": sf.SPOTFUTURES_STARTED_AT,
+    })
+
     try:
         while True:
-            await websocket.receive_text()
+            message = await websocket.receive_text()
+            await sf.handle_client_message(websocket, message)
 
     except WebSocketDisconnect:
         sf.clients.remove(websocket)
@@ -454,8 +481,15 @@ def scanner():
                 "min_profit_percent": settings["min_profit_percent"],
             })
 
-            # Send opportunities to website
+            # Send opportunities to website, and retain them server-side so
+            # a client connecting later (or reconnecting after a refresh)
+            # can catch up via the "init" snapshot instead of seeing nothing
+            # until the next detection.
+            global best_profit
+
             for opportunity in opps[:10]:
+                events_history.append(opportunity)
+                best_profit = max(best_profit, opportunity["profit"])
                 send_opportunity(opportunity)
 
         except Exception as error:

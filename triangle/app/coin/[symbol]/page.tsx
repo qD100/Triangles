@@ -10,7 +10,6 @@ import CoinSelector, { type SelectableCoin } from "@/app/components/CoinSelector
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
-import { DEFAULT_CONDITIONS, type Conditions } from "./PositionSettingsPanel";
 import useSpotFuturesTicker from "./useSpotFuturesTicker";
 
 type Snapshot = {
@@ -102,7 +101,6 @@ export default function CoinPage({
   const priceFlashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const spotFutures = useSpotFuturesTicker(upperSymbol);
-  const [conditions, setConditions] = useState<Conditions>(DEFAULT_CONDITIONS);
 
   // Switching the active instrument (via the header selector, a market-table
   // row, or a direct link) shouldn't let the previous coin's price/snapshot
@@ -118,18 +116,21 @@ export default function CoinPage({
     setPriceFlash(null);
   }
 
-  const mountedAt = useRef(0);
+  // Origin is the spot/futures engine's own start time (received once over
+  // the websocket), not this page's mount time — a refresh shows the
+  // engine's true uptime instead of resetting to zero. One shared engine
+  // uptime regardless of which symbol is currently selected.
   const [uptimeSeconds, setUptimeSeconds] = useState(0);
 
   useEffect(() => {
-    mountedAt.current = Date.now();
-
     const interval = setInterval(() => {
-      setUptimeSeconds(Math.floor((Date.now() - mountedAt.current) / 1000));
+      if (spotFutures.serverStartedAt !== null) {
+        setUptimeSeconds(Math.floor((Date.now() - spotFutures.serverStartedAt) / 1000));
+      }
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [spotFutures.serverStartedAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -316,8 +317,10 @@ export default function CoinPage({
           symbol={upperSymbol}
           connected={spotFutures.connected}
           current={spotFutures.current}
-          conditions={conditions}
-          onConditionsChange={setConditions}
+          position={spotFutures.position}
+          conditions={spotFutures.conditions}
+          onReset={spotFutures.resetPosition}
+          onConditionsChange={spotFutures.updateConditions}
         />
       </main>
 

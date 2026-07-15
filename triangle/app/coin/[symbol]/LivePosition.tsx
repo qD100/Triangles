@@ -3,25 +3,18 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { GearIcon } from "@/app/components/icons";
-import type { SpreadRow } from "./useSpotFuturesTicker";
-import PositionSettingsPanel, { type Conditions } from "./PositionSettingsPanel";
+import type { SpreadRow, SpotFuturesPosition, SpotFuturesConditions } from "./useSpotFuturesTicker";
+import PositionSettingsPanel from "./PositionSettingsPanel";
 
 type Props = {
   symbol: string;
   connected: boolean;
   current: SpreadRow | null;
-  conditions: Conditions;
-  onConditionsChange: (next: Conditions) => void;
+  position: SpotFuturesPosition | null;
+  conditions: SpotFuturesConditions | null;
+  onReset: () => void;
+  onConditionsChange: (next: SpotFuturesConditions) => void;
 };
-
-type Entry = {
-  spot: number;
-  futures: number;
-  time: number;
-  spread: number;
-};
-
-type Phase = "scanning" | "open" | "idle";
 
 function formatPrice(value: number) {
   return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -47,62 +40,48 @@ function formatDuration(totalSeconds: number) {
   return `${minutes}m ${seconds}s`;
 }
 
-export default function LivePosition({ symbol, connected, current, conditions, onConditionsChange }: Props) {
-  const [phase, setPhase] = useState<Phase>("scanning");
-  const [entry, setEntry] = useState<Entry | null>(null);
+// Pure viewer: phase/entry/conditions are the backend's own persistent,
+// shared state (one paper-trading engine, every viewer sees the same
+// thing) — this component no longer evaluates entry conditions or owns
+// any of that data itself, it just renders whatever the server sends and
+// forwards user actions (reset, settings changes) back over the socket.
+export default function LivePosition({
+  symbol,
+  connected,
+  current,
+  position,
+  conditions,
+  onReset,
+  onConditionsChange,
+}: Props) {
   const [unsupported, setUnsupported] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // A new symbol has nothing to do with the previous one's position — reset
-  // during render (state-adjustment-on-prop-change pattern) rather than in
-  // an effect, so switching coins clears everything immediately.
   const [trackedSymbol, setTrackedSymbol] = useState(symbol);
 
   if (symbol !== trackedSymbol) {
     setTrackedSymbol(symbol);
-    setPhase("scanning");
-    setEntry(null);
     setUnsupported(false);
-  } else if (
-    phase === "scanning" &&
-    conditions.autoEntry &&
-    current &&
-    current.spread_percent >= conditions.minSpreadPercent &&
-    current.net_percent >= conditions.minNetProfitPercent
-  ) {
-    // Entry conditions satisfied on a live tick — also a render-time
-    // adjustment, not an effect: opening the paper trade is a direct
-    // function of the current spread data, latched once and never
-    // recomputed until the position is reset.
-    setPhase("open");
-    setEntry({ spot: current.spot, futures: current.futures, time: now, spread: current.spread_percent });
   }
 
   useEffect(() => {
-    if (!connected || current || phase !== "scanning") return;
+    if (!connected || current || position) return;
 
     const timer = setTimeout(() => setUnsupported(true), 4000);
 
     return () => clearTimeout(timer);
-  }, [connected, current, phase, symbol]);
+  }, [connected, current, position, symbol]);
 
   useEffect(() => {
     const interval = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(interval);
   }, []);
 
-  function handleReset() {
-    setEntry(null);
-    setPhase(conditions.autoResetAfterClose ? "scanning" : "idle");
-    setUnsupported(false);
-  }
-
-  function handleResume() {
-    setPhase("scanning");
-  }
-
-  const bodyKey = unsupported && phase !== "open" ? "unsupported" : phase;
+  const bodyKey =
+    unsupported && position?.phase !== "open"
+      ? "unsupported"
+      : (position?.phase ?? "loading");
 
   return (
     <section className="flex flex-col rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40">
@@ -123,7 +102,7 @@ export default function LivePosition({ symbol, connected, current, conditions, o
           </button>
         </div>
 
-        {settingsOpen && (
+        {settingsOpen && conditions && (
           <PositionSettingsPanel
             conditions={conditions}
             onUpdate={onConditionsChange}
@@ -133,6 +112,19 @@ export default function LivePosition({ symbol, connected, current, conditions, o
       </div>
 
       <AnimatePresence mode="wait">
+        {bodyKey === "loading" && (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="p-5 text-sm text-zinc-500"
+          >
+            Connecting to the live engine…
+          </motion.div>
+        )}
+
         {bodyKey === "unsupported" && (
           <motion.div
             key="unsupported"
@@ -147,7 +139,7 @@ export default function LivePosition({ symbol, connected, current, conditions, o
           </motion.div>
         )}
 
-        {bodyKey === "scanning" && (
+        {bodyKey === "scanning" && conditions && (
           <motion.div
             key="scanning"
             initial={{ opacity: 0 }}
@@ -167,11 +159,11 @@ export default function LivePosition({ symbol, connected, current, conditions, o
             exit={{ opacity: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <IdleBody onResume={handleResume} />
+            <IdleBody onResume={onReset} />
           </motion.div>
         )}
 
-        {bodyKey === "open" && entry && (
+        {bodyKey === "open" && position?.entry && (
           <motion.div
             key="open"
             initial={{ opacity: 0, y: 8 }}
@@ -179,7 +171,7 @@ export default function LivePosition({ symbol, connected, current, conditions, o
             exit={{ opacity: 0 }}
             transition={{ duration: 0.35, ease: "easeOut" }}
           >
-            <OpenBody entry={entry} current={current} now={now} onReset={handleReset} />
+            <OpenBody entry={position.entry} current={current} now={now} onReset={onReset} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -270,13 +262,6 @@ function ScanHoneycomb() {
           style={{
             fillOpacity: 0,
             strokeOpacity: 0,
-            // Longhand properties, not the `animation` shorthand: browsers
-            // expand shorthand style attributes into longhands when parsing
-            // server-rendered HTML, which otherwise reads as a hydration
-            // mismatch even though the values are identical. Also rounded
-            // to a fixed precision — the browser's CSSOM normalizes long
-            // decimal time values when it parses the server HTML, so an
-            // untruncated JS float string mismatches what it stored.
             animationName: "honeycomb-pulse",
             animationDuration: `${HONEYCOMB_SWEEP_SECONDS.toFixed(3)}s`,
             animationTimingFunction: "ease-in-out",
@@ -296,9 +281,9 @@ function ScanningBody({
 }: {
   symbol: string;
   current: SpreadRow | null;
-  conditions: Conditions;
+  conditions: SpotFuturesConditions;
 }) {
-  const statusLabel = conditions.autoEntry ? "Scanning..." : "Waiting for Entry...";
+  const statusLabel = conditions.auto_entry ? "Scanning..." : "Waiting for Entry...";
 
   return (
     <div className="flex flex-col">
@@ -308,7 +293,7 @@ function ScanningBody({
         <div className="relative z-10 flex items-center gap-2">
           <span
             className={`h-2 w-2 rounded-full ${
-              conditions.autoEntry ? "bg-emerald-400/80 animate-pulse" : "bg-zinc-600"
+              conditions.auto_entry ? "bg-emerald-400/80 animate-pulse" : "bg-zinc-600"
             }`}
           />
           <span className="text-sm font-semibold tracking-wide text-zinc-300">{statusLabel}</span>
@@ -333,7 +318,7 @@ function ScanningBody({
         <div className="flex items-center justify-between border-t border-zinc-800 pt-3">
           <span className="text-xs text-zinc-500">Entry Conditions</span>
           <span className="font-mono text-xs text-zinc-400">
-            Spread ≥ {conditions.minSpreadPercent.toFixed(2)}% · Net ≥ {conditions.minNetProfitPercent.toFixed(2)}%
+            Spread ≥ {conditions.min_spread_percent.toFixed(2)}% · Net ≥ {conditions.min_net_profit_percent.toFixed(2)}%
           </span>
         </div>
       </div>
@@ -370,7 +355,7 @@ function OpenBody({
   now,
   onReset,
 }: {
-  entry: Entry;
+  entry: NonNullable<SpotFuturesPosition["entry"]>;
   current: SpreadRow | null;
   now: number;
   onReset: () => void;
