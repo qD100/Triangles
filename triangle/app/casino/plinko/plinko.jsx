@@ -56,6 +56,8 @@ const short = (s) => `${s.slice(0, 8)}…${s.slice(-6)}`;
 const ROW_OPTIONS = [8, 12, 16];
 const RISK_OPTIONS = ["low", "medium", "high"];
 const BALL_COUNT_OPTIONS = [1, 5, 10, 25, 50, 100];
+const CASH_UP_AMOUNTS = [10, 100, 1000, 10000];
+const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 const DEFAULT_BOARD_W = 820;
 const DEFAULT_BOARD_H = 480;
@@ -244,7 +246,7 @@ export default function Plinko() {
         rafId = requestAnimationFrame(frame);
       } else {
         const netProfit = +(profitAccum - totalBet).toFixed(8);
-        setHistory((h) => [{ id: roundIdRef.current++, ballCount, profit: netProfit }, ...h].slice(0, 12));
+        setHistory((h) => [{ id: roundIdRef.current++, bet: totalBet, ballCount, profit: netProfit, time: nowClock() }, ...h].slice(0, 30));
         setTotalBallsDropped((t) => t + ballCount);
         setTotalProfit((t) => +(t + netProfit).toFixed(8));
         setLastRoundProfit(netProfit);
@@ -269,6 +271,8 @@ export default function Plinko() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
+
+  const cashUp = (amount) => setBalance((b) => +(b + amount).toFixed(8));
 
   const roundOver = phase === "result";
   const controlsDisabled = phase === "dropping";
@@ -328,6 +332,24 @@ export default function Plinko() {
       </div>
 
       <div className="pk-main">
+        <div className="pk-history-panel">
+          <span className="pk-history-panel-title">Bet Log</span>
+          <div className="pk-history-header">
+            <span>#</span><span>Bet</span><span>Win / Loss</span><span>Time</span>
+          </div>
+          <div className="pk-history-body">
+            {history.length === 0 && <div className="pk-history-empty">No bets yet</div>}
+            {history.map((h) => (
+              <div key={h.id} className="pk-history-row">
+                <span>#{h.id}</span>
+                <span className="mono">{fmt(h.bet, 4)}</span>
+                <span className={`mono ${h.profit >= 0 ? "good" : "bad"}`}>{h.profit >= 0 ? "+" : ""}{fmt(h.profit, 4)}</span>
+                <span className="mono pk-history-time">{h.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="pk-board-wrap">
           <div className="pk-board-measure" ref={boardWrapRef}>
             <div className="pk-board" style={{ width: boardSize.width, height: boardSize.height }}>
@@ -417,16 +439,13 @@ export default function Plinko() {
             {controlsDisabled ? "Dropping…" : `Drop ${ballCount} Ball${ballCount > 1 ? "s" : ""}`}
           </button>
 
-          <div className="pk-history">
-            <span className="pk-history-title">Recent drops</span>
-            {history.length === 0 && <span className="pk-history-empty">No drops yet</span>}
-            {history.map((h) => (
-              <div key={h.id} className="pk-history-row">
-                <span>#{h.id}</span>
-                <span>{h.ballCount} ball{h.ballCount > 1 ? "s" : ""}</span>
-                <span className={`mono ${h.profit >= 0 ? "good" : "bad"}`}>{h.profit >= 0 ? "+" : ""}{fmt(h.profit, 2)}</span>
-              </div>
-            ))}
+          <div className="pk-field">
+            <label>Cash up</label>
+            <div className="pk-choice-grid">
+              {CASH_UP_AMOUNTS.map((amt) => (
+                <button key={amt} className="pk-cashup-btn mono" onClick={() => cashUp(amt)}>+{amt}</button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -484,6 +503,15 @@ const CSS = `
 .pk-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
 
 .pk-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; }
+
+.pk-history-panel { flex: 0 0 260px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; min-height: 0; }
+.pk-history-panel-title { color: var(--text); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; flex-shrink: 0; }
+.pk-history-header { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; flex-shrink: 0; }
+.pk-history-body { overflow-y: auto; min-height: 0; }
+.pk-history-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+.pk-history-row { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 11px; padding: 5px 0; color: var(--text); border-bottom: 1px solid #ffffff08; }
+.pk-history-time { color: var(--muted); font-size: 10px; }
+
 .pk-board-wrap { flex: 1.3; display: flex; flex-direction: column; align-items: center; min-height: 0; min-width: 0; }
 .pk-board-measure { width: 100%; flex: 1 1 auto; min-height: 0; max-width: 1100px; max-height: 100%; position: relative; }
 .pk-board { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
@@ -516,10 +544,8 @@ const CSS = `
 .pk-primary-btn { background: var(--gold); color: #1a1400; border: none; border-radius: 8px; padding: 11px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .pk-primary-btn:disabled { opacity: 0.4; cursor: default; }
 
-.pk-history { margin-top: 2px; border-top: 1px solid var(--border); padding-top: 10px; }
-.pk-history-title { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
-.pk-history-empty { color: var(--muted); font-size: 12px; }
-.pk-history-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; color: var(--muted); }
+.pk-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
+.pk-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
 
 .pk-stats-bar { display: flex; gap: 12px; margin-top: 14px; flex-shrink: 0; }
 .pk-stat-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
@@ -530,6 +556,7 @@ const CSS = `
 @media (max-width: 860px) {
   .pk-main { flex-direction: column; }
   .pk-panel { max-width: 100%; }
+  .pk-history-panel { flex: 0 0 auto; max-height: 220px; order: 3; }
   .pk-stats-bar { flex-direction: column; }
 }
 `;

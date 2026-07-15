@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
-import { Gem, Bomb, ShieldCheck, RefreshCw, ChevronDown, Check, Copy } from "lucide-react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
+import { Gem, Bomb, ShieldCheck, RefreshCw, Check, Copy } from "lucide-react";
 
 /* ---------------------------------------------------------------
    Crypto helpers — Web Crypto API, no external libs.
@@ -61,6 +61,8 @@ function multiplierFor(revealed, mines, total = 25) {
 
 const fmt = (n, d = 4) => Number(n).toFixed(d);
 const short = (s) => `${s.slice(0, 8)}…${s.slice(-6)}`;
+const CASH_UP_AMOUNTS = [10, 100, 1000, 10000];
+const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 export default function MinesCasino() {
   const [balance, setBalance] = useState(1.0); // simulated units, "sBTC"
@@ -79,6 +81,7 @@ export default function MinesCasino() {
   const [verified, setVerified] = useState(null); // null | true
   const [copied, setCopied] = useState(false);
   const busy = useRef(false);
+  const roundIdRef = useRef(1);
 
   const revealedCount = revealed.size;
   const multiplier = useMemo(() => multiplierFor(revealedCount, mineCount), [revealedCount, mineCount]);
@@ -109,7 +112,7 @@ export default function MinesCasino() {
     if (mines.has(idx)) {
       setHitTile(idx);
       setPhase("busted");
-      setHistory((h) => [{ result: "bust", bet, payout: 0, mines: mineCount, nonce }, ...h].slice(0, 12));
+      setHistory((h) => [{ id: roundIdRef.current++, bet, profit: -bet, mines: mineCount, time: nowClock() }, ...h].slice(0, 30));
       setNonce((n) => n + 1);
       return;
     }
@@ -121,9 +124,10 @@ export default function MinesCasino() {
   const cashOut = () => {
     if (phase !== "playing" || revealedCount === 0) return;
     const payout = +(bet * multiplier).toFixed(8);
+    const profit = +(payout - bet).toFixed(8);
     setBalance((b) => +(b + payout).toFixed(8));
     setPhase("cashed");
-    setHistory((h) => [{ result: "cashed", bet, payout, mult: multiplier, mines: mineCount, nonce }, ...h].slice(0, 12));
+    setHistory((h) => [{ id: roundIdRef.current++, bet, profit, mines: mineCount, time: nowClock() }, ...h].slice(0, 30));
     setNonce((n) => n + 1);
   };
 
@@ -149,6 +153,8 @@ export default function MinesCasino() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
+
+  const cashUp = (amount) => setBalance((b) => +(b + amount).toFixed(8));
 
   const roundOver = phase === "busted" || phase === "cashed";
 
@@ -210,6 +216,24 @@ export default function MinesCasino() {
       </div>
 
       <div className="mc-main">
+        <div className="mc-history-panel">
+          <span className="mc-history-panel-title">Bet Log</span>
+          <div className="mc-history-header">
+            <span>#</span><span>Bet</span><span>Win / Loss</span><span>Time</span>
+          </div>
+          <div className="mc-history-body">
+            {history.length === 0 && <div className="mc-history-empty">No bets yet</div>}
+            {history.map((h) => (
+              <div key={h.id} className="mc-history-row">
+                <span>#{h.id}</span>
+                <span className="mono">{fmt(h.bet, 4)}</span>
+                <span className={`mono ${h.profit >= 0 ? "good" : "bad"}`}>{h.profit >= 0 ? "+" : ""}{fmt(h.profit, 4)}</span>
+                <span className="mono mc-history-time">{h.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="mc-board-wrap">
           <div className="mc-board">
             {Array.from({ length: 25 }, (_, idx) => {
@@ -306,16 +330,13 @@ export default function MinesCasino() {
           {phase === "busted" && <div className="mc-result bad">Hit a mine — round lost</div>}
           {phase === "cashed" && <div className="mc-result good">Cashed out at {fmt(multiplier, 2)}×</div>}
 
-          <div className="mc-history">
-            <span className="mc-history-title">Recent rounds</span>
-            {history.length === 0 && <span className="mc-history-empty">No rounds yet</span>}
-            {history.map((h, i) => (
-              <div key={i} className={`mc-history-row ${h.result}`}>
-                <span>#{h.nonce}</span>
-                <span>{h.mines} mines</span>
-                <span className="mono">{h.result === "cashed" ? `+${fmt(h.payout, 5)}` : `−${fmt(h.bet, 5)}`}</span>
-              </div>
-            ))}
+          <div className="mc-field">
+            <label>Cash up</label>
+            <div className="mc-choice-grid">
+              {CASH_UP_AMOUNTS.map((amt) => (
+                <button key={amt} className="mc-cashup-btn mono" onClick={() => cashUp(amt)}>+{amt}</button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -342,14 +363,15 @@ const CSS = `
   background: var(--bg);
   color: var(--text);
   font-family: 'Inter', sans-serif;
-  border-radius: 12px;
-  padding: 20px;
-  max-width: 900px;
-  margin: 0 auto;
+  width: 100vw; height: 100vh; box-sizing: border-box;
+  padding: 20px; display: flex; flex-direction: column;
+  overflow-x: hidden; overflow-y: auto;
 }
 .mono { font-family: 'JetBrains Mono', monospace; }
+.good { color: var(--teal) !important; }
+.bad { color: var(--danger) !important; }
 
-.mc-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.mc-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .mc-brand { display: flex; align-items: baseline; gap: 8px; }
 .mc-brand-mark { color: var(--gold); font-size: 16px; }
 .mc-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
@@ -361,7 +383,7 @@ const CSS = `
 .mc-ledger {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-  padding: 10px 14px; margin-bottom: 18px; font-size: 12px;
+  padding: 10px 14px; margin-bottom: 14px; font-size: 12px; flex-shrink: 0;
 }
 .mc-ledger-item { display: flex; flex-direction: column; gap: 2px; }
 .mc-ledger-k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
@@ -381,11 +403,21 @@ const CSS = `
   border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500;
 }
 
-.mc-main { display: flex; gap: 20px; }
-.mc-board-wrap { flex: 1.3; }
+.mc-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; }
+
+.mc-history-panel { flex: 0 0 260px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; min-height: 0; }
+.mc-history-panel-title { color: var(--text); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; flex-shrink: 0; }
+.mc-history-header { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; flex-shrink: 0; }
+.mc-history-body { overflow-y: auto; min-height: 0; }
+.mc-history-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+.mc-history-row { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 11px; padding: 5px 0; color: var(--text); border-bottom: 1px solid #ffffff08; }
+.mc-history-time { color: var(--muted); font-size: 10px; }
+
+.mc-board-wrap { flex: 1.3; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 0; min-width: 0; }
 .mc-board {
   display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px;
   background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px;
+  width: 100%; max-width: 560px;
 }
 .mc-tile {
   aspect-ratio: 1; background: var(--panel-alt); border: 1px solid var(--border);
@@ -401,8 +433,8 @@ const CSS = `
 .mc-hint { margin-top: 10px; text-align: center; color: var(--muted); font-size: 12px; }
 
 .mc-panel {
-  flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
-  padding: 16px; display: flex; flex-direction: column; gap: 14px;
+  flex: 1; max-width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0;
 }
 .mc-field label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
 .mc-bet-row { display: flex; gap: 6px; }
@@ -437,10 +469,13 @@ const CSS = `
 .mc-result.bad { background: var(--danger-dim); color: var(--danger); }
 .mc-result.good { background: #2DD4BF22; color: var(--teal); }
 
-.mc-history { margin-top: 4px; border-top: 1px solid var(--border); padding-top: 10px; }
-.mc-history-title { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
-.mc-history-empty { color: var(--muted); font-size: 12px; }
-.mc-history-row { display: flex; justify-content: space-between; font-size: 11px; padding: 3px 0; color: var(--muted); }
-.mc-history-row.cashed span:last-child { color: var(--teal); }
-.mc-history-row.bust span:last-child { color: var(--danger); }
+.mc-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.mc-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
+.mc-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
+
+@media (max-width: 860px) {
+  .mc-main { flex-direction: column; }
+  .mc-panel { max-width: 100%; }
+  .mc-history-panel { flex: 0 0 auto; max-height: 220px; order: 3; }
+}
 `;

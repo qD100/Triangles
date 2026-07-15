@@ -56,15 +56,16 @@ function betDefs(n) {
   };
 }
 
-const CHIP_VALUES = [0.0005, 0.001, 0.005, 0.01];
 const fmt = (n, d = 4) => Number(n).toFixed(d);
 const short = (s) => `${s.slice(0, 8)}…${s.slice(-6)}`;
 const NUM_GRID = Array.from({ length: 36 }, (_, i) => i + 1);
+const CASH_UP_AMOUNTS = [10, 100, 1000, 10000];
+const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 export default function Roulette() {
   const [balance, setBalance] = useState(1.0);
-  const [chip, setChip] = useState(0.001);
-  const [bets, setBets] = useState({}); // key -> amount (key is "n-<num>" or outside key)
+  const [bet, setBet] = useState(0.001); // amount placed per click on a cell
+  const [bets, setBets] = useState({}); // key -> amount staked (key is "n-<num>" or outside key)
   const [clientSeed, setClientSeed] = useState("player-seed-0001");
   const [nonce, setNonce] = useState(0);
 
@@ -78,13 +79,14 @@ export default function Roulette() {
   const [history, setHistory] = useState([]);
   const [lastPayout, setLastPayout] = useState(null);
   const busy = useRef(false);
+  const roundIdRef = useRef(1);
 
   const totalWager = useMemo(() => Object.values(bets).reduce((a, b) => a + b, 0), [bets]);
 
-  const addChip = (key) => {
+  const addBet = (key) => {
     if (phase !== "betting") return;
-    if (chip > balance - totalWager) return;
-    setBets((b) => ({ ...b, [key]: +(( b[key] || 0) + chip).toFixed(8) }));
+    if (bet <= 0 || bet > balance - totalWager) return;
+    setBets((b) => ({ ...b, [key]: +((b[key] || 0) + bet).toFixed(8) }));
   };
   const clearBets = () => { if (phase === "betting") setBets({}); };
 
@@ -122,9 +124,10 @@ export default function Roulette() {
         }
       }
       payout = +payout.toFixed(8);
+      const profit = +(payout - totalWager).toFixed(8);
       setBalance((b) => +(b + payout).toFixed(8));
       setLastPayout(payout);
-      setHistory((h) => [{ nonce, winner, wager: totalWager, payout }, ...h].slice(0, 12));
+      setHistory((h) => [{ id: roundIdRef.current++, winner, bet: totalWager, profit, time: nowClock() }, ...h].slice(0, 30));
       setNonce((n) => n + 1);
       setPhase("result");
       busy.current = false;
@@ -153,6 +156,8 @@ export default function Roulette() {
     setCopied(true);
     setTimeout(() => setCopied(false), 1200);
   };
+
+  const cashUp = (amount) => setBalance((b) => +(b + amount).toFixed(8));
 
   const roundOver = phase === "result";
 
@@ -209,6 +214,24 @@ export default function Roulette() {
       </div>
 
       <div className="rl-main">
+        <div className="rl-history-panel">
+          <span className="rl-history-panel-title">Bet Log</span>
+          <div className="rl-history-header">
+            <span>#</span><span>Bet</span><span>Win / Loss</span><span>Time</span>
+          </div>
+          <div className="rl-history-body">
+            {history.length === 0 && <div className="rl-history-empty">No spins yet</div>}
+            {history.map((h) => (
+              <div key={h.id} className="rl-history-row">
+                <span>#{h.id}</span>
+                <span className="mono">{fmt(h.bet, 4)}</span>
+                <span className={`mono ${h.profit >= 0 ? "good" : "bad"}`}>{h.profit >= 0 ? "+" : ""}{fmt(h.profit, 4)}</span>
+                <span className="mono rl-history-time">{h.time}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="rl-wheel-wrap">
           <div className="rl-pointer" />
           <div className="rl-wheel-outer">
@@ -248,24 +271,29 @@ export default function Roulette() {
         </div>
 
         <div className="rl-panel">
-          <div className="rl-chip-row">
-            <span className="rl-field-label">Chip value</span>
-            <div className="rl-chips">
-              {CHIP_VALUES.map((v) => (
-                <button key={v} className={`rl-chip ${chip === v ? "active" : ""}`} onClick={() => setChip(v)} disabled={phase !== "betting"}>
-                  {v}
-                </button>
-              ))}
+          <div className="rl-field">
+            <label>Bet amount</label>
+            <div className="rl-bet-row">
+              <input
+                type="number" min="0.0001" step="0.0001" value={bet}
+                disabled={phase !== "betting"}
+                onChange={(e) => setBet(Math.max(0, parseFloat(e.target.value) || 0))}
+                className="mono"
+              />
+              <div className="rl-bet-quick">
+                <button disabled={phase !== "betting"} onClick={() => setBet((b) => +(b / 2).toFixed(8))}>½</button>
+                <button disabled={phase !== "betting"} onClick={() => setBet((b) => +(b * 2).toFixed(8))}>2×</button>
+              </div>
             </div>
           </div>
 
           <div className="rl-board">
-            <div className="rl-zero" onClick={() => addChip("n-0")}>
+            <div className="rl-zero" onClick={() => addBet("n-0")}>
               0 {bets["n-0"] ? <b className="mono">{fmt(bets["n-0"], 3)}</b> : null}
             </div>
             <div className="rl-numgrid">
               {NUM_GRID.map((n) => (
-                <div key={n} className={`rl-numcell ${colorOf(n)}`} onClick={() => addChip(`n-${n}`)}>
+                <div key={n} className={`rl-numcell ${colorOf(n)}`} onClick={() => addBet(`n-${n}`)}>
                   {n}
                   {bets[`n-${n}`] ? <b className="mono">{fmt(bets[`n-${n}`], 3)}</b> : null}
                 </div>
@@ -275,7 +303,7 @@ export default function Roulette() {
               {[
                 ["dozen1", "1st 12"], ["dozen2", "2nd 12"], ["dozen3", "3rd 12"],
               ].map(([k, label]) => (
-                <div key={k} className="rl-outcell" onClick={() => addChip(k)}>
+                <div key={k} className="rl-outcell" onClick={() => addBet(k)}>
                   {label} {bets[k] ? <b className="mono">{fmt(bets[k], 3)}</b> : null}
                 </div>
               ))}
@@ -284,7 +312,7 @@ export default function Roulette() {
               {[
                 ["low", "1–18"], ["even", "Even"], ["red", "Red"], ["black", "Black"], ["odd", "Odd"], ["high", "19–36"],
               ].map(([k, label]) => (
-                <div key={k} className={`rl-outcell ${k === "red" ? "red" : k === "black" ? "black" : ""}`} onClick={() => addChip(k)}>
+                <div key={k} className={`rl-outcell ${k === "red" ? "red" : k === "black" ? "black" : ""}`} onClick={() => addBet(k)}>
                   {label} {bets[k] ? <b className="mono">{fmt(bets[k], 3)}</b> : null}
                 </div>
               ))}
@@ -307,16 +335,13 @@ export default function Roulette() {
             <button className="rl-primary-btn" onClick={newRound}><RefreshCw size={14} /> New round</button>
           )}
 
-          <div className="rl-history">
-            <span className="rl-history-title">Recent spins</span>
-            {history.length === 0 && <span className="rl-history-empty">No spins yet</span>}
-            {history.map((h, i) => (
-              <div key={i} className="rl-history-row">
-                <span>#{h.nonce}</span>
-                <span className={`rl-history-num ${colorOf(h.winner)}`}>{h.winner}</span>
-                <span className={`mono ${h.payout > 0 ? "good" : "bad"}`}>{h.payout > 0 ? `+${fmt(h.payout, 5)}` : `−${fmt(h.wager, 5)}`}</span>
-              </div>
-            ))}
+          <div className="rl-field">
+            <label>Cash up</label>
+            <div className="rl-choice-grid">
+              {CASH_UP_AMOUNTS.map((amt) => (
+                <button key={amt} className="rl-cashup-btn mono" onClick={() => cashUp(amt)}>+{amt}</button>
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -341,10 +366,15 @@ const CSS = `
   --text: #E6EDF3; --muted: #7D8590; --gold: #F0B429; --gold-dim: #F0B42922;
   --teal: #2DD4BF; --danger: #EF4444; --danger-dim: #EF444422;
   background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
-  border-radius: 12px; padding: 20px; max-width: 980px; margin: 0 auto;
+  width: 100vw; height: 100vh; box-sizing: border-box;
+  padding: 20px; display: flex; flex-direction: column;
+  overflow-x: hidden; overflow-y: auto;
 }
 .mono { font-family: 'JetBrains Mono', monospace; }
-.rl-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.good { color: var(--teal) !important; }
+.bad { color: var(--danger) !important; }
+
+.rl-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .rl-brand { display: flex; align-items: baseline; gap: 8px; }
 .rl-brand-mark { color: var(--gold); font-size: 16px; }
 .rl-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
@@ -353,7 +383,7 @@ const CSS = `
 .rl-wallet-label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
 .rl-wallet-value { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; color: var(--gold); }
 
-.rl-ledger { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 18px; font-size: 12px; }
+.rl-ledger { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; flex-shrink: 0; }
 .rl-ledger-item { display: flex; flex-direction: column; gap: 2px; }
 .rl-ledger-k { color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
 .rl-ledger-v { color: var(--teal); font-size: 12px; }
@@ -362,8 +392,17 @@ const CSS = `
 .rl-inline-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
 .rl-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
 
-.rl-main { display: flex; gap: 20px; }
-.rl-wheel-wrap { flex: 0 0 260px; display: flex; flex-direction: column; align-items: center; padding-top: 10px; }
+.rl-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; }
+
+.rl-history-panel { flex: 0 0 260px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; min-height: 0; }
+.rl-history-panel-title { color: var(--text); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; flex-shrink: 0; }
+.rl-history-header { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--muted); border-bottom: 1px solid var(--border); padding-bottom: 6px; margin-bottom: 4px; flex-shrink: 0; }
+.rl-history-body { overflow-y: auto; min-height: 0; }
+.rl-history-empty { color: var(--muted); font-size: 12px; padding: 8px 0; }
+.rl-history-row { display: grid; grid-template-columns: 0.6fr 1fr 1fr 1fr; gap: 4px; font-size: 11px; padding: 5px 0; color: var(--text); border-bottom: 1px solid #ffffff08; }
+.rl-history-time { color: var(--muted); font-size: 10px; }
+
+.rl-wheel-wrap { flex: 0 0 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding-top: 10px; }
 .rl-pointer { width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 14px solid var(--gold); margin-bottom: -4px; z-index: 2; }
 .rl-wheel-outer { position: relative; width: 240px; height: 240px; border-radius: 50%; border: 4px solid var(--panel-alt); box-shadow: 0 0 0 1px var(--border); }
 .rl-wheel { position: absolute; inset: 0; border-radius: 50%; }
@@ -377,13 +416,12 @@ const CSS = `
 .rl-payout-msg.good { background: #2DD4BF22; color: var(--teal); }
 .rl-payout-msg.bad { background: var(--danger-dim); color: var(--danger); }
 
-.rl-panel { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-.rl-field-label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-.rl-chip-row { }
-.rl-chips { display: flex; gap: 6px; }
-.rl-chip { background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); border-radius: 20px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-family: 'JetBrains Mono', monospace; }
-.rl-chip.active { border-color: var(--gold); color: var(--gold); background: var(--gold-dim); }
-.rl-chip:disabled { opacity: 0.4; cursor: default; }
+.rl-panel { flex: 1; max-width: 420px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto; min-height: 0; }
+.rl-field label { display: block; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+.rl-bet-row { display: flex; gap: 6px; }
+.rl-bet-row input { flex: 1; background: var(--panel-alt); border: 1px solid var(--border); color: var(--text); border-radius: 8px; padding: 8px 10px; font-size: 13px; }
+.rl-bet-quick { display: flex; gap: 4px; }
+.rl-bet-quick button { background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 0 10px; cursor: pointer; font-size: 12px; }
 
 .rl-board { background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
 .rl-zero { background: #0F766E; border-radius: 6px; padding: 6px; font-size: 12px; text-align: center; cursor: pointer; margin-bottom: 4px; display: flex; justify-content: center; gap: 6px; }
@@ -407,14 +445,13 @@ const CSS = `
 .rl-primary-btn { background: var(--gold); color: #1a1400; border: none; border-radius: 8px; padding: 11px; font-weight: 600; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; }
 .rl-primary-btn:disabled { opacity: 0.4; cursor: default; }
 
-.rl-history { margin-top: 2px; border-top: 1px solid var(--border); padding-top: 10px; }
-.rl-history-title { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; margin-bottom: 6px; }
-.rl-history-empty { color: var(--muted); font-size: 12px; }
-.rl-history-row { display: flex; justify-content: space-between; align-items: center; font-size: 11px; padding: 3px 0; color: var(--muted); }
-.rl-history-num { width: 18px; height: 18px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 9px; color: #fff; font-family: 'JetBrains Mono', monospace; }
-.rl-history-num.red { background: #B91C1C; }
-.rl-history-num.black { background: #161B22; }
-.rl-history-num.green { background: #0F766E; }
-.rl-history-row .good { color: var(--teal); }
-.rl-history-row .bad { color: var(--danger); }
+.rl-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+.rl-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
+.rl-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
+
+@media (max-width: 1100px) {
+  .rl-main { flex-direction: column; align-items: stretch; }
+  .rl-history-panel, .rl-wheel-wrap, .rl-panel { flex: 0 0 auto; max-width: 100%; }
+  .rl-history-panel { max-height: 220px; order: 3; }
+}
 `;
