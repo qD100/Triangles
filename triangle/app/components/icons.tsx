@@ -106,3 +106,14 @@ export function TargetIcon({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+export function OptionsIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 21v-8M12 13 6 5M12 13l6-8" />
+      <circle cx="6" cy="4" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="18" cy="4" r="1.6" fill="currentColor" stroke="none" />
+      <circle cx="12" cy="21" r="1.6" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

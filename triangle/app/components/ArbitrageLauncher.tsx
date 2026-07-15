@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { GridIcon, TriangleLogoIcon, TargetIcon } from "./icons";
+import { GridIcon, TriangleLogoIcon, TargetIcon, OptionsIcon } from "./icons";
 
 export type ArbitrageTool = {
   id: string;
@@ -48,6 +48,13 @@ export const ARBITRAGE_TOOLS: ArbitrageTool[] = [
     description: "Cash-and-carry opportunities",
     icon: TargetIcon,
     route: resolveSpotFuturesRoute,
+  },
+  {
+    id: "options",
+    title: "Options Arbitrage",
+    description: "Option pricing inefficiencies",
+    icon: OptionsIcon,
+    route: "/options-arbitrage",
   },
 ];
 
