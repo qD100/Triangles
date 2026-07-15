@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
+import RadarLoader from "@/app/components/Scanner/RadarLoader";
 import type { OptionsOpportunity } from "@/app/components/hooks/useOptionsScanner";
 
 type Props = {
@@ -47,7 +48,7 @@ export default function OptionsFeed({ opportunities }: Props) {
 function EmptyFeed() {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
-      <div className="mb-4 h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-emerald-400" />
+      <RadarLoader />
       <div className="text-xl font-semibold text-white">Waiting for opportunities...</div>
       <div className="mt-2 text-sm text-zinc-500">
         All four engines are scanning live Binance options data.
