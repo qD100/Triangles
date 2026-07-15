@@ -186,6 +186,27 @@ export default function SpreadChart({ symbol, connected, current, history }: Pro
   }, []);
 
   useEffect(() => {
+    if (history.length === 0) return;
+
+    // First data for this symbol (fresh mount, reconnect, or a symbol
+    // switch already cleared plottedRef via the effect below). The server
+    // may hand over a large batch of retained history all at once from its
+    // subscribe response, not a single new tick — seed directly from it so
+    // the chart appears fully formed immediately, as if the page had been
+    // open since the engine started, instead of rebuilding one point at a
+    // time from empty.
+    if (plottedRef.current.length === 0 && history.length > 1) {
+      const seed = history.slice(-VISIBLE_POINTS);
+
+      plottedRef.current = seed;
+      lastAppliedTimeRef.current = seed[seed.length - 1].time;
+      resetSlide();
+      setHasGeometry(seed.length >= 2);
+      draw(seed);
+
+      return;
+    }
+
     const latest = history[history.length - 1];
     if (!latest) return;
     if (latest.time === lastAppliedTimeRef.current) return;
