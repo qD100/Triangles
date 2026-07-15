@@ -249,16 +249,7 @@ export default function Plinko() {
 
         let ballsToDraw = [];
 
-        if (roundState && roundState.finalized) {
-          // Round already finished — keep drawing the settled balls resting
-          // in their buckets (matching the pre-canvas version's behavior)
-          // instead of the board going blank the instant the round ends.
-          // The next dropBalls() call replaces this ref outright, so there's
-          // nothing left to step or check here.
-          ballsToDraw = roundState.active.map((e) => ({
-            x: e.body.position.x, y: e.body.position.y, settled: true,
-          }));
-        } else if (roundState) {
+        if (roundState) {
           roundState.elapsedMs += deltaMs;
 
           const stillPending = [];
@@ -306,7 +297,7 @@ export default function Plinko() {
             roundState.active.every((e) => e.settledHandled)
           ) {
             finalizeRound(roundState);
-            roundState.finalized = true;
+            roundStateRef.current = null;
           }
         }
 
