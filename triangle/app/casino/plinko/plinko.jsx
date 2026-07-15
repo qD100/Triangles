@@ -203,13 +203,13 @@ export default function Plinko() {
       const nextPositions = ballDefs.map((b) => {
         if (b.landed) {
           const last = b.waypoints[b.waypoints.length - 1];
-          return { id: b.id, x: last.x, y: last.y, visible: true };
+          return { id: b.id, x: last.x, y: last.y, visible: true, landed: true };
         }
 
         const localElapsed = elapsed - b.startDelay;
         if (localElapsed < 0) {
           allDone = false;
-          return { id: b.id, x: b.waypoints[0].x, y: b.waypoints[0].y, visible: false };
+          return { id: b.id, x: b.waypoints[0].x, y: b.waypoints[0].y, visible: false, landed: false };
         }
 
         if (localElapsed >= b.totalDuration) {
@@ -221,7 +221,7 @@ export default function Plinko() {
           bucketDelta[b.bucket] += 1;
           frameMaxMult = Math.max(frameMaxMult, mult);
           const last = b.waypoints[b.waypoints.length - 1];
-          return { id: b.id, x: last.x, y: last.y, visible: true };
+          return { id: b.id, x: last.x, y: last.y, visible: true, landed: true };
         }
 
         allDone = false;
@@ -232,7 +232,7 @@ export default function Plinko() {
         const x = lerp(from.x, to.x, easeOutBack(segT));
         const y = lerp(from.y, to.y, easeInQuad(segT));
         const wobble = Math.sin((elapsed + b.id * 37) / 45) * 1.4 * (1 - segT);
-        return { id: b.id, x: x + wobble, y, visible: true };
+        return { id: b.id, x: x + wobble, y, visible: true, landed: false };
       });
 
       setBalls(nextPositions);
@@ -363,7 +363,11 @@ export default function Plinko() {
                 });
               })}
               {balls.map((b) => (
-                <div key={b.id} className="pk-ball" style={{ left: b.x, top: b.y, opacity: b.visible ? 1 : 0 }} />
+                <div
+                  key={b.id}
+                  className={`pk-ball ${b.landed ? "pk-ball-landed" : ""}`}
+                  style={{ transform: `translate3d(${b.x - 6}px, ${b.y - 6}px, 0)`, opacity: b.visible ? 1 : 0 }}
+                />
               ))}
             </div>
           </div>
@@ -514,9 +518,11 @@ const CSS = `
 
 .pk-board-wrap { flex: 1.3; display: flex; flex-direction: column; align-items: center; min-height: 0; min-width: 0; }
 .pk-board-measure { width: 100%; flex: 1 1 auto; min-height: 0; max-width: 1100px; max-height: 100%; position: relative; }
-.pk-board { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.pk-board { position: relative; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; contain: layout paint; }
 .pk-pin { position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); transform: translate(-50%, -50%); opacity: 0.6; }
-.pk-ball { position: absolute; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px 2px #F0B42988; transform: translate(-50%, -50%); }
+.pk-ball { position: absolute; top: 0; left: 0; width: 12px; height: 12px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 8px 2px #F0B42988; will-change: transform; }
+.pk-ball-landed { animation: pk-ball-land 260ms ease-out; }
+@keyframes pk-ball-land { 0% { filter: brightness(1); } 35% { filter: brightness(1.8); } 100% { filter: brightness(1); } }
 .pk-buckets { display: flex; gap: 2px; margin-top: 6px; max-width: 1100px; flex-shrink: 0; }
 .pk-bucket { flex: 1; text-align: center; font-size: 10px; padding: 6px 0; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-weight: 600; background: var(--panel-alt); color: var(--muted); border: 1px solid var(--border); }
 .pk-bucket.lo { color: #6b7280; }
