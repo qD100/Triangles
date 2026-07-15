@@ -18,6 +18,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.utils import get_column_letter
 
 import sf
+import options
 
 
 BASE = "USDT"
@@ -134,6 +135,33 @@ async def spotfutures_websocket(websocket: WebSocket):
     except WebSocketDisconnect:
         sf.clients.remove(websocket)
         print("[spotfutures] Website disconnected")
+
+
+@app.websocket("/ws/options")
+async def options_websocket(websocket: WebSocket):
+    await websocket.accept()
+
+    options.clients.append(websocket)
+
+    print("[options] Website connected")
+
+    await websocket.send_json({
+        "type": "init",
+        "started_at": options.OPTIONS_STARTED_AT,
+        "events": list(options.events_history),
+        "market": dict(options.market_state),
+        "scanners": {k: dict(v) for k, v in options.scanner_status.items()},
+        "settings": options.settings,
+    })
+
+    try:
+        while True:
+            message = await websocket.receive_text()
+            await options.handle_client_message(websocket, message)
+
+    except WebSocketDisconnect:
+        options.clients.remove(websocket)
+        print("[options] Website disconnected")
 
 
 async def broadcast_opportunity(opportunity):
@@ -509,6 +537,7 @@ async def startup_event():
 
     main_loop = asyncio.get_running_loop()
     sf.main_loop = main_loop
+    options.main_loop = main_loop
 
     scanner_thread = threading.Thread(
         target=scanner,
@@ -523,6 +552,13 @@ async def startup_event():
     )
 
     spotfutures_thread.start()
+
+    options_thread = threading.Thread(
+        target=options.run_forever,
+        daemon=True
+    )
+
+    options_thread.start()
 
 
 if __name__ == "__main__":
