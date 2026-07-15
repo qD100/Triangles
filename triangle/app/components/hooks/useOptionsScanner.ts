@@ -116,14 +116,24 @@ export default function useOptionsScanner() {
     };
 
     socket.current.onmessage = (message) => {
-      const data: IncomingMessage = JSON.parse(message.data);
+      // A message arriving mid-redeploy (server restarting, connection torn
+      // down mid-write) can be truncated or shaped unexpectedly — never let
+      // that crash the whole tab. Worst case, this tick's update is skipped
+      // and the next broadcast (a few seconds later) catches it up.
+      let data: IncomingMessage;
+
+      try {
+        data = JSON.parse(message.data);
+      } catch {
+        return;
+      }
 
       if (data.type === "init") {
         setServerStartedAt(data.started_at);
-        setOpportunities(data.events.slice(0, MAX_EVENTS));
-        setMarket(data.market);
-        setScanners(data.scanners);
-        setSettings(data.settings);
+        setOpportunities((data.events ?? []).slice(0, MAX_EVENTS));
+        setMarket(data.market ?? {});
+        setScanners(data.scanners ?? {});
+        if (data.settings) setSettings(data.settings);
         return;
       }
 
@@ -133,13 +143,15 @@ export default function useOptionsScanner() {
       }
 
       if (data.type === "status") {
-        setMarket(data.market);
-        setScanners(data.scanners);
-        setPerformanceStats(data.performance);
+        if (data.market) setMarket(data.market);
+        if (data.scanners) setScanners(data.scanners);
+        if (data.performance) setPerformanceStats(data.performance);
         return;
       }
 
-      setOpportunities((previous) => [data, ...previous.slice(0, MAX_EVENTS - 1)]);
+      if (data.type === "opportunity") {
+        setOpportunities((previous) => [data, ...previous.slice(0, MAX_EVENTS - 1)]);
+      }
     };
   }
 
