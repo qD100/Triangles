@@ -31,15 +31,15 @@ import type {
 } from "@/lib/portfolio-builder/types";
 
 const FILE_BY_SYMBOL: Record<EtfSymbol, string> = {
-  SPY: "spy.csv",
-  VXUS: "vxus.csv",
-  SGOV: "sgov.csv",
-  GLD: "gld.csv",
-  VNQ: "vnq.csv",
+  SPY: "SPY.csv",
+  VXUS: "VXUS.csv",
+  BIL: "BIL.csv",
+  GLD: "GLD.csv",
+  VNQ: "VNQ.csv",
 };
 
 async function loadAnalyticsBundle(): Promise<AnalyticsBundle> {
-  const dataDir = path.join(process.cwd(), "data", "etf");
+  const dataDir = path.join(process.cwd(), "app", "namaa", "mrktdata");
 
   const seriesEntries = await Promise.all(
     ETF_SYMBOLS.map(async (symbol) => {

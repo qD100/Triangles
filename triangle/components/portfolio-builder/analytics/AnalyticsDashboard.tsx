@@ -30,11 +30,11 @@ export function AnalyticsDashboard({
     <div className="space-y-8">
       <div className="text-center">
         <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Six years of market data, distilled
+          Market data, distilled
         </h2>
         <p className="mx-auto mt-2 max-w-2xl text-sm text-muted-foreground">
           {analytics.dataStartDate} to {analytics.dataEndDate} · daily adjusted closing prices
-          for SPY, VXUS, SGOV, GLD &amp; VNQ
+          for SPY, VXUS, BIL, GLD &amp; VNQ
         </p>
       </div>
 
@@ -43,7 +43,7 @@ export function AnalyticsDashboard({
         <AlertTitle>Total-return data</AlertTitle>
         <AlertDescription>
           Figures use each fund&apos;s dividend-and-split-adjusted close, so reinvested dividends and
-          distributions are included — not just price appreciation. This matters most for SGOV,
+          distributions are included — not just price appreciation. This matters most for BIL,
           whose return comes almost entirely from its yield rather than share-price movement.
         </AlertDescription>
       </Alert>

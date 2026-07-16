@@ -1,4 +1,4 @@
-export type EtfSymbol = "SPY" | "VXUS" | "SGOV" | "GLD" | "VNQ";
+export type EtfSymbol = "SPY" | "VXUS" | "BIL" | "GLD" | "VNQ";
 
 export interface PricePoint {
   date: string; // YYYY-MM-DD

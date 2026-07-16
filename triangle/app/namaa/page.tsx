@@ -16,7 +16,7 @@ const FEATURES = [
     icon: LineChartIcon,
     title: "Real market analytics",
     description:
-      "Six years of daily returns, volatility, drawdowns and correlations across five asset classes.",
+      "Historical daily returns, volatility, drawdowns and correlations across five asset classes.",
   },
   {
     icon: Sparkles,
@@ -70,8 +70,8 @@ export default function NamaaHome() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mt-6 max-w-2xl text-lg text-muted-foreground"
         >
-          Answer a short risk questionnaire, see how SPY, VXUS, SGOV, GLD and VNQ have actually
-          performed since 2020, and get a personalized allocation that responds to both.
+          Answer a short risk questionnaire, see how SPY, VXUS, BIL, GLD and VNQ have actually
+          performed historically, and get a personalized allocation that responds to both.
         </motion.p>
 
         <motion.div

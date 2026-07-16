@@ -1,6 +1,6 @@
 import type { Allocation, EtfSymbol } from "./types";
 
-export const ETF_SYMBOLS: EtfSymbol[] = ["SPY", "VXUS", "SGOV", "GLD", "VNQ"];
+export const ETF_SYMBOLS: EtfSymbol[] = ["SPY", "VXUS", "BIL", "GLD", "VNQ"];
 
 export interface EtfMeta {
   symbol: EtfSymbol;
@@ -24,9 +24,9 @@ export const ETF_META: Record<EtfSymbol, EtfMeta> = {
     category: "International Equity",
     color: { light: "#008300", dark: "#008300" },
   },
-  SGOV: {
-    symbol: "SGOV",
-    fullName: "0-3 Month Treasury Bill (Cash-like)",
+  BIL: {
+    symbol: "BIL",
+    fullName: "1-3 Month Treasury Bill (Cash-like)",
     category: "Cash & Equivalents",
     color: { light: "#e87ba4", dark: "#d55181" },
   },
@@ -47,7 +47,13 @@ export const ETF_META: Record<EtfSymbol, EtfMeta> = {
 export const TRADING_DAYS_PER_YEAR = 252;
 export const DAYS_PER_YEAR = 365.25;
 
-export const DATA_START_DATE = "2020-01-01";
+// Widest bound across the source files (SPY/BIL/GLD/VNQ start 2010-01-04,
+// VXUS 2011-01-28 — its real inception date). alignPriceSeries()
+// inner-joins on dates present in every symbol, so the actual analyzed
+// window is bottlenecked to VXUS's availability (~15 years) regardless of
+// these bounds — they just need to comfortably contain all of it, not
+// artificially truncate it.
+export const DATA_START_DATE = "2010-01-01";
 export const DATA_END_DATE = "2025-12-31";
 
 export const DEFAULT_RISK_FREE_RATE = 0.045;
@@ -69,9 +75,9 @@ export const STYLE_BAND_THRESHOLDS = [20, 40, 60, 80] as const;
 // The spec's own three example portfolios, used as interpolation anchors
 // at risk score 0 / 50 / 100.
 export const ALLOCATION_ANCHORS: Record<0 | 50 | 100, Allocation> = {
-  0: { SPY: 5, VXUS: 15, SGOV: 50, GLD: 20, VNQ: 10 },
-  50: { SPY: 35, VXUS: 25, SGOV: 20, GLD: 10, VNQ: 10 },
-  100: { SPY: 45, VXUS: 30, SGOV: 5, GLD: 5, VNQ: 15 },
+  0: { SPY: 5, VXUS: 15, BIL: 50, GLD: 20, VNQ: 10 },
+  50: { SPY: 35, VXUS: 25, BIL: 20, GLD: 10, VNQ: 10 },
+  100: { SPY: 45, VXUS: 30, BIL: 5, GLD: 5, VNQ: 15 },
 };
 
 // Status palette — fixed, never themed, always paired with icon + label.
