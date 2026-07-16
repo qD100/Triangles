@@ -1,4 +1,4 @@
-import type { Allocation, EtfSymbol } from "./types";
+import type { Allocation, EtfSymbol, SuperCategory, TransactionCategory } from "./types";
 
 export const ETF_SYMBOLS: EtfSymbol[] = ["SPY", "VXUS", "BIL", "GLD", "VNQ"];
 
@@ -67,10 +67,43 @@ export const ROLLING_VOL_WINDOW_DAYS = 21;
 // risk-score-interpolated baseline allocation.
 export const VOL_TILT_WEIGHT = 0.25;
 
-export const RISK_SCORE_RAW_MIN = 7;
-export const RISK_SCORE_RAW_MAX = 135;
+export const CLIENT_RISK_RAW_MIN = 2;
+export const CLIENT_RISK_RAW_MAX = 112;
 
 export const STYLE_BAND_THRESHOLDS = [20, 40, 60, 80] as const;
+
+export const CATEGORY_LABELS: Record<TransactionCategory, string> = {
+  rent: "Rent",
+  telecom: "Telecom",
+  savings: "Savings",
+  investment: "Investment",
+  subscriptions: "Subscriptions",
+  transfer: "Transfer",
+  entertainment: "Entertainment",
+  shopping: "Shopping",
+  education: "Education",
+  salary: "Salary",
+  cash_withdrawal: "Cash Withdrawal",
+  travel: "Travel",
+  health: "Health",
+  charity: "Charity",
+  pharmacy: "Pharmacy",
+  loans: "Loans",
+  coffee: "Coffee",
+  restaurants: "Restaurants",
+  groceries: "Groceries",
+  gifts: "Gifts",
+  fuel: "Fuel",
+};
+
+export const SUPER_CATEGORY_LABELS: Record<SuperCategory, string> = {
+  basic_needs: "Basic Needs",
+  neutral_income: "Neutral (Income)",
+  luxuries: "Luxuries",
+  financial_obligation: "Financial Obligation",
+  investment_savings: "Investment & Savings",
+  growth_giving: "Growth & Giving",
+};
 
 // The spec's own three example portfolios, used as interpolation anchors
 // at risk score 0 / 50 / 100.

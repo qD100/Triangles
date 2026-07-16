@@ -22,7 +22,6 @@ import {
 } from "@/lib/portfolio-builder/finance";
 import type {
   AnalyticsBundle,
-  Answers,
   EtfSymbol,
   RiskScoreResult,
 } from "@/lib/portfolio-builder/types";
@@ -32,8 +31,8 @@ import { StyleBadge } from "./StyleBadge";
 
 interface RecommendationDashboardProps {
   analytics: AnalyticsBundle;
-  answers: Answers;
   riskScore: RiskScoreResult;
+  clientName: string;
   onRestart: () => void;
 }
 
@@ -42,6 +41,7 @@ const PORTFOLIO_ACCENT_COLOR = "#7c3aed";
 export function RecommendationDashboard({
   analytics,
   riskScore,
+  clientName,
   onRestart,
 }: RecommendationDashboardProps) {
   const scheme = useColorScheme();
@@ -100,7 +100,7 @@ export function RecommendationDashboard({
           Your recommendation
         </p>
         <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-          Your {riskScore.label} Portfolio
+          {riskScore.label} Portfolio for {clientName.split(" ")[0]}
         </h2>
         <div className="mt-4 flex justify-center">
           <StyleBadge label={riskScore.label} score={riskScore.score} />
@@ -118,7 +118,7 @@ export function RecommendationDashboard({
         <StatCard
           label="Historical CAGR"
           value={`${(metrics.historicalCagr * 100).toFixed(1)}%`}
-          tooltip="Annualized growth rate this allocation would have achieved over 2020-2025 (price return only)."
+          tooltip={`Annualized growth rate this allocation would have achieved over ${analytics.dataStartDate} to ${analytics.dataEndDate} (price return only).`}
         />
         <StatCard
           label="Worst Drawdown"

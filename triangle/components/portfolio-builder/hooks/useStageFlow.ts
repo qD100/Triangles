@@ -1,26 +1,26 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { StageId } from "@/lib/portfolio-builder/types";
 
-const LOADING_DURATION_MS = 1400;
-
 export function useStageFlow() {
-  const [stage, setStage] = useState<StageId>("questionnaire");
-  const loadingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [stage, setStage] = useState<StageId>("clientId");
 
-  const completeQuestionnaire = useCallback(() => {
-    setStage("loading");
-    loadingTimeout.current = setTimeout(() => setStage("analytics"), LOADING_DURATION_MS);
-  }, []);
-
+  const startLookup = useCallback(() => setStage("loading"), []);
+  const goToClientId = useCallback(() => setStage("clientId"), []);
+  const goToProfile = useCallback(() => setStage("profile"), []);
+  const goToAnalytics = useCallback(() => setStage("analytics"), []);
   const goToRecommendation = useCallback(() => setStage("recommendation"), []);
+  const restart = useCallback(() => setStage("clientId"), []);
 
-  const restart = useCallback(() => {
-    if (loadingTimeout.current) clearTimeout(loadingTimeout.current);
-    setStage("questionnaire");
-  }, []);
-
-  return { stage, completeQuestionnaire, goToRecommendation, restart };
+  return {
+    stage,
+    startLookup,
+    goToClientId,
+    goToProfile,
+    goToAnalytics,
+    goToRecommendation,
+    restart,
+  };
 }

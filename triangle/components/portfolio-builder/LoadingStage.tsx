@@ -3,23 +3,27 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
-const MESSAGES = [
-  "Reading 6 years of market history...",
+const DEFAULT_MESSAGES = [
+  "Reading market history...",
   "Calculating volatility & drawdowns...",
   "Mapping asset correlations...",
   "Calibrating your risk profile...",
   "Building your personalized portfolio...",
 ];
 
-export function LoadingStage() {
+interface LoadingStageProps {
+  messages?: string[];
+}
+
+export function LoadingStage({ messages = DEFAULT_MESSAGES }: LoadingStageProps) {
   const [messageIndex, setMessageIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((i) => Math.min(i + 1, MESSAGES.length - 1));
+      setMessageIndex((i) => Math.min(i + 1, messages.length - 1));
     }, 270);
     return () => clearInterval(interval);
-  }, []);
+  }, [messages]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-8 text-center">
@@ -35,7 +39,7 @@ export function LoadingStage() {
         transition={{ duration: 0.25 }}
         className="text-lg font-medium text-muted-foreground"
       >
-        {MESSAGES[messageIndex]}
+        {messages[messageIndex]}
       </motion.p>
     </div>
   );

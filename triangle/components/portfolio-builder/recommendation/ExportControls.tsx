@@ -45,7 +45,7 @@ export function ExportControls({
         <Download /> Download Allocation CSV
       </Button>
       <Button variant="ghost" onClick={onRestart}>
-        <RotateCcw /> Restart Questionnaire
+        <RotateCcw /> Look Up Another Client
       </Button>
     </div>
   );

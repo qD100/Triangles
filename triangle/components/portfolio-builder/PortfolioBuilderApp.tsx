@@ -1,49 +1,69 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { AnalyticsDashboard } from "@/components/portfolio-builder/analytics/AnalyticsDashboard";
+import { ClientIdStage } from "@/components/portfolio-builder/client/ClientIdStage";
+import { ClientProfileStage } from "@/components/portfolio-builder/client/ClientProfileStage";
 import { useStageFlow } from "@/components/portfolio-builder/hooks/useStageFlow";
 import { LoadingStage } from "@/components/portfolio-builder/LoadingStage";
-import { Questionnaire } from "@/components/portfolio-builder/questionnaire/Questionnaire";
 import { RecommendationDashboard } from "@/components/portfolio-builder/recommendation/RecommendationDashboard";
-import { computeRiskScore } from "@/lib/portfolio-builder/risk-score";
-import type { AnalyticsBundle, Answers } from "@/lib/portfolio-builder/types";
+import type { AnalyticsBundle, ClientRecord } from "@/lib/portfolio-builder/types";
 
 interface PortfolioBuilderAppProps {
   initialAnalytics: AnalyticsBundle;
 }
 
-const EMPTY_ANSWERS: Answers = {
-  age: null,
-  horizon: null,
-  lossReaction: null,
-  goal: null,
-  experience: null,
-  monthlyInvestPercent: 10,
-};
+const CLIENT_LOOKUP_MESSAGES = [
+  "Looking up client record...",
+  "Pulling 2024 transaction history...",
+  "Calculating cash flow & debt ratios...",
+  "Calibrating your financial risk profile...",
+  "Preparing your financial snapshot...",
+];
 
 export function PortfolioBuilderApp({ initialAnalytics }: PortfolioBuilderAppProps) {
-  const { stage, completeQuestionnaire, goToRecommendation, restart } = useStageFlow();
-  const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
+  const {
+    stage,
+    startLookup,
+    goToClientId,
+    goToProfile,
+    goToAnalytics,
+    goToRecommendation,
+    restart,
+  } = useStageFlow();
+  const [client, setClient] = useState<ClientRecord | null>(null);
+  const [lookupError, setLookupError] = useState<string | null>(null);
   const [riskFreeRate, setRiskFreeRate] = useState(initialAnalytics.riskFreeRateDefault);
 
-  const handleQuestionnaireComplete = useCallback(
-    (finalAnswers: Answers) => {
-      setAnswers(finalAnswers);
-      completeQuestionnaire();
+  const handleClientIdSubmit = useCallback(
+    async (id: string) => {
+      setLookupError(null);
+      startLookup();
+      try {
+        const res = await fetch(`/api/namaa/clients/${encodeURIComponent(id)}`);
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          throw new Error(body?.error ?? `Client "${id}" was not found.`);
+        }
+        const record = (await res.json()) as ClientRecord;
+        setClient(record);
+        goToProfile();
+      } catch (err) {
+        setLookupError(err instanceof Error ? err.message : "Something went wrong. Try again.");
+        goToClientId();
+      }
     },
-    [completeQuestionnaire]
+    [startLookup, goToProfile, goToClientId]
   );
 
   const handleRestart = useCallback(() => {
-    setAnswers(EMPTY_ANSWERS);
+    setClient(null);
+    setLookupError(null);
     setRiskFreeRate(initialAnalytics.riskFreeRateDefault);
     restart();
   }, [restart, initialAnalytics.riskFreeRateDefault]);
-
-  const riskScore = useMemo(() => computeRiskScore(answers), [answers]);
 
   // Always land at the top of a new stage — otherwise a tall stage (analytics/
   // recommendation) can render starting mid-scroll from wherever a short stage
@@ -67,20 +87,20 @@ export function PortfolioBuilderApp({ initialAnalytics }: PortfolioBuilderAppPro
             Portfolio Builder
           </p>
           <h1 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
-            Build a portfolio backed by 6 years of market data
+            A portfolio built from your own financial data
           </h1>
         </header>
 
         <AnimatePresence mode="wait">
-          {stage === "questionnaire" && (
+          {stage === "clientId" && (
             <motion.div
-              key="questionnaire"
+              key="clientId"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
             >
-              <Questionnaire onComplete={handleQuestionnaireComplete} />
+              <ClientIdStage onSubmit={handleClientIdSubmit} error={lookupError} />
             </motion.div>
           )}
 
@@ -92,7 +112,19 @@ export function PortfolioBuilderApp({ initialAnalytics }: PortfolioBuilderAppPro
               exit={{ opacity: 0 }}
               transition={{ duration: 0.25 }}
             >
-              <LoadingStage />
+              <LoadingStage messages={CLIENT_LOOKUP_MESSAGES} />
+            </motion.div>
+          )}
+
+          {stage === "profile" && client && (
+            <motion.div
+              key="profile"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <ClientProfileStage client={client} onContinue={goToAnalytics} onBack={goToClientId} />
             </motion.div>
           )}
 
@@ -113,7 +145,7 @@ export function PortfolioBuilderApp({ initialAnalytics }: PortfolioBuilderAppPro
             </motion.div>
           )}
 
-          {stage === "recommendation" && (
+          {stage === "recommendation" && client && (
             <motion.div
               key="recommendation"
               initial={{ opacity: 0, y: 16 }}
@@ -123,8 +155,8 @@ export function PortfolioBuilderApp({ initialAnalytics }: PortfolioBuilderAppPro
             >
               <RecommendationDashboard
                 analytics={initialAnalytics}
-                answers={answers}
-                riskScore={riskScore}
+                riskScore={client.riskScore}
+                clientName={client.profile.fullName}
                 onRestart={handleRestart}
               />
             </motion.div>

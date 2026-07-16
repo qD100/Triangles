@@ -10,7 +10,7 @@ const FEATURES = [
     icon: ShieldCheck,
     title: "Know your risk profile",
     description:
-      "A fast, adaptive questionnaire turns your answers into a 0-100 risk score and an investment style.",
+      "Your Client ID unlocks your real income, debt and spending data, turned into a 0-100 risk score and an investment style.",
   },
   {
     icon: LineChartIcon,
@@ -35,7 +35,7 @@ const PREVIEW_SERIES = [
 
 export default function NamaaHome() {
   return (
-    <div className="relative min-h-screen bg-gradient-to-b from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-black dark:to-zinc-950">
+    <div className="relative min-h-screen text-foreground bg-gradient-to-b from-zinc-50 via-white to-zinc-50 dark:from-zinc-950 dark:via-black dark:to-zinc-950">
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 -left-40 h-[36rem] w-[36rem] rounded-full bg-emerald-400/20 blur-3xl dark:bg-emerald-500/10" />
         <div className="absolute top-0 right-0 h-[30rem] w-[30rem] rounded-full bg-blue-400/20 blur-3xl dark:bg-blue-500/10" />
@@ -49,7 +49,7 @@ export default function NamaaHome() {
           transition={{ duration: 0.5 }}
           className="text-sm font-semibold tracking-widest text-blue-600 uppercase dark:text-blue-400"
         >
-          Portfolio Builder
+          Namaa
         </motion.p>
 
         <motion.h1
@@ -58,9 +58,9 @@ export default function NamaaHome() {
           transition={{ duration: 0.6, delay: 0.05 }}
           className="mt-4 max-w-3xl text-4xl font-bold tracking-tight sm:text-6xl"
         >
-          Build a portfolio backed by{" "}
+          Portfolio Builder,{" "}
           <span className="bg-gradient-to-r from-emerald-500 via-blue-500 to-violet-500 bg-clip-text text-transparent">
-            six years of market data
+            built around your data
           </span>
         </motion.h1>
 
@@ -70,8 +70,8 @@ export default function NamaaHome() {
           transition={{ duration: 0.6, delay: 0.1 }}
           className="mt-6 max-w-2xl text-lg text-muted-foreground"
         >
-          Answer a short risk questionnaire, see how SPY, VXUS, BIL, GLD and VNQ have actually
-          performed historically, and get a personalized allocation that responds to both.
+          Enter your Client ID, see how SPY, VXUS, BIL, GLD and VNQ have actually performed
+          historically, and get a personalized allocation built from your own financial data.
         </motion.p>
 
         <motion.div

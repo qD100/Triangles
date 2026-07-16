@@ -10,3 +10,7 @@ __pycache__/
 # Generated data
 live*.xlsx
 log*.xlsx
+
+# Raw client dataset (contains plaintext credentials sheet) — only the
+# derived, credentials-free JSON in app/namaa/mrktdata/clients/ is tracked.
+triangle/app/namaa/mrktdata/*.xlsx

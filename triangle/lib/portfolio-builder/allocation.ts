@@ -34,8 +34,8 @@ export function inverseVolWeights(volBySymbol: Record<EtfSymbol, number>): Alloc
 
 /**
  * Blends the risk-score-interpolated baseline with an inverse-volatility
- * tilt so the final allocation responds to BOTH the questionnaire and
- * historical volatility, while staying smooth/continuous as score moves.
+ * tilt so the final allocation responds to BOTH the client's risk score
+ * and historical volatility, while staying smooth/continuous as score moves.
  * Renormalization is a float-precision safety net, not load-bearing logic:
  * both inputs already sum to 100 and are non-negative by construction.
  */
