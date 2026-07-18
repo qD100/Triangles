@@ -1,24 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import InfoButton from "@/app/components/InfoButton";
+import type { InfoDocSlug } from "@/app/data/infoDocs";
 import type { ScannerId, ScannerStatus } from "@/app/components/hooks/useOptionsScanner";
 
 export type EngineDef = {
   id: ScannerId;
   title: string;
   algorithms: string[];
+  infoSlug: InfoDocSlug;
 };
 
 // Adding a fifth engine later is one entry here plus one activity-phrase
 // list below — the center column renders straight from this array.
 export const OPTIONS_ENGINES: EngineDef[] = [
-  { id: "core", title: "Core Arbitrage", algorithms: ["Put-Call Parity"] },
-  { id: "box", title: "Box Spread", algorithms: ["Long Box", "Short Box"] },
-  { id: "synthetic", title: "Synthetic Arbitrage", algorithms: ["Conversion", "Reverse Conversion"] },
+  { id: "core", title: "Core Arbitrage", algorithms: ["Put-Call Parity"], infoSlug: "put-call-parity" },
+  { id: "box", title: "Box Spread", algorithms: ["Long Box", "Short Box"], infoSlug: "box-spread" },
+  {
+    id: "synthetic",
+    title: "Synthetic Arbitrage",
+    algorithms: ["Conversion", "Reverse Conversion"],
+    infoSlug: "synthetic-conversion",
+  },
   {
     id: "chain",
     title: "Option Chain Analysis",
     algorithms: ["Convexity", "Butterfly Arbitrage", "Calendar Arbitrage", "Pricing Bounds"],
+    infoSlug: "option-chain-analysis",
   },
 ];
 
@@ -93,7 +102,14 @@ export default function OptionsEngineCard({ engine, status }: Props) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-[#111111] p-4 shadow-2xl shadow-black/40 transition-colors hover:border-blue-500/30">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold tracking-wide text-white">{engine.title}</h3>
+        <div className="flex items-center gap-1.5">
+          <h3 className="text-sm font-bold tracking-wide text-white">{engine.title}</h3>
+          <InfoButton
+            slug={engine.infoSlug}
+            className="text-zinc-600 transition-colors hover:text-blue-400"
+            iconClassName="h-3.5 w-3.5"
+          />
+        </div>
 
         <div className="flex shrink-0 items-center gap-1.5">
           <span className={`h-1.5 w-1.5 rounded-full ${meta.dot}`} />

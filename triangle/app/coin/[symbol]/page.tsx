@@ -7,6 +7,7 @@ import CoinIcon from "@/app/components/Market/CoinIcon";
 import { TriangleLogoIcon } from "@/app/components/icons";
 import ArbitrageLauncher, { LAST_SPOTFUTURES_SYMBOL_KEY } from "@/app/components/ArbitrageLauncher";
 import CoinSelector, { type SelectableCoin } from "@/app/components/CoinSelector";
+import InfoButton from "@/app/components/InfoButton";
 import { initialCoins } from "@/app/data/initialCoins";
 import SpreadChart from "./SpreadChart";
 import LivePosition from "./LivePosition";
@@ -226,18 +227,22 @@ export default function CoinPage({
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-zinc-800 bg-[#111111]/90 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8">
-          <ArbitrageLauncher />
+        <div className="mx-auto flex h-14 max-w-[1400px] items-center justify-between gap-2 px-3 sm:h-16 sm:gap-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <ArbitrageLauncher />
 
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-sm font-semibold text-zinc-400 transition-colors hover:text-white"
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
-              <TriangleLogoIcon className="h-4 w-4" />
-            </div>
-            <span className="hidden sm:inline">Back to Terminal</span>
-          </Link>
+            <Link
+              href="/"
+              className="flex items-center gap-2 text-sm font-semibold text-zinc-400 transition-colors hover:text-white"
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400">
+                <TriangleLogoIcon className="h-4 w-4" />
+              </div>
+              <span className="hidden sm:inline">Back to Terminal</span>
+            </Link>
+          </div>
+
+          <InfoButton slug="spot-futures" />
         </div>
       </header>
 

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { GearIcon, ExpandIcon, CollapseIcon, TriangleLogoIcon } from "./icons";
 import SettingsPanel from "./SettingsPanel";
 import ArbitrageLauncher from "./ArbitrageLauncher";
+import InfoButton from "./InfoButton";
 import type { ScannerSettings } from "./hooks/useArbitrage";
 
 type Props = {
@@ -114,6 +115,8 @@ export default function Header({
         {/* ACTIONS */}
 
         <div className="relative flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <InfoButton slug="triangular-arbitrage" />
+
           <button
             type="button"
             aria-label="Settings"
