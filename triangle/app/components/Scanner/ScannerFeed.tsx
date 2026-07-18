@@ -63,6 +63,16 @@ export default function ScannerFeed({
 
       </div>
 
+      {/* Column header */}
+
+      {visibleEvents.length > 0 && (
+        <div className="hidden items-center gap-4 border-b border-zinc-800/60 px-5 py-2 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase sm:flex">
+          <span className="w-20 shrink-0">Time</span>
+          <span className="flex-1">Path</span>
+          <span className="shrink-0">Profit</span>
+        </div>
+      )}
+
       {/* Feed */}
 
       <div className="flex flex-1 flex-col overflow-y-auto px-2 pb-2">

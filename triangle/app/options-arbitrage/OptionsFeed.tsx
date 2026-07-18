@@ -25,6 +25,14 @@ export default function OptionsFeed({ opportunities }: Props) {
         <p className="mt-1 text-sm text-zinc-500">Live feed across all four scanners</p>
       </div>
 
+      {opportunities.length > 0 && (
+        <div className="hidden items-center gap-4 border-b border-zinc-800/60 px-5 py-2 text-[10px] font-semibold tracking-wider text-zinc-600 uppercase sm:flex">
+          <span className="w-24 shrink-0">Symbol / Time</span>
+          <span className="flex-1">Algorithm</span>
+          <span className="shrink-0">Profit / Confidence</span>
+        </div>
+      )}
+
       <div className="flex flex-1 flex-col overflow-y-auto px-2 pb-2">
         {opportunities.length === 0 ? (
           <EmptyFeed />
