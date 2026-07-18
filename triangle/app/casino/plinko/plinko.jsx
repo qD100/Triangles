@@ -256,7 +256,7 @@ export default function Plinko() {
           for (const def of roundState.pending) {
             if (roundState.elapsedMs >= def.spawnDelayMs) {
               const body = physics.spawnBall(Matter, roundState.world, {
-                id: def.id, bits: def.bits, bucket: def.bucket, boardWidth: size.width, rows,
+                id: def.id, bits: def.bits, bucket: def.bucket, boardWidth: size.width, boardHeight: size.height, rows,
               });
               roundState.active.push({ body, def, spawnedAtMs: roundState.elapsedMs, settledHandled: false });
             } else {

@@ -20,12 +20,33 @@
 // up — this module cannot change who wins or loses, only how it looks.
 // -----------------------------------------------------------------------
 
-const GRAVITY_Y = 2.1;
+const GRAVITY_Y = 2.2;
 const BALL_RADIUS = 7;
 const PEG_RADIUS = 4;
-const BALL_RESTITUTION = 0.4;
-const PEG_RESTITUTION = 0.35;
-const NUDGE_MAGNITUDE = 3.1;
+const BALL_RESTITUTION = 0.25;
+const PEG_RESTITUTION = 0.25;
+// Nudge strength scales with how far off-course the ball currently is
+// (proportional control), not a fixed kick every row. A fixed magnitude
+// strong enough to track extreme paths (e.g. 16 consecutive same-direction
+// steps, the highest-multiplier buckets) looked robotic on ordinary paths;
+// one weak enough to look natural near the center couldn't keep up with
+// real gravity/bounce drift over a full extreme run, leaving the ball
+// hundreds of pixels from its bucket by the time the safety-net clamp
+// teleported it there — measured via scripts/_diagnose-plinko.mjs (a
+// throwaway snap-distance probe, not checked in) before this constant was
+// tuned. BASE keeps near-target nudges gentle; GAIN ramps up with |error|;
+// MAGNITUDE_CAP keeps a maximally-off-course ball's kick believable.
+const NUDGE_BASE = 0;
+const NUDGE_GAIN = 0.0;
+const NUDGE_MAGNITUDE_CAP = 10;
+// Continuous per-physics-step steering (see the `beforeUpdate` handler in
+// createWorld) — a gentle constant pull toward the interpolated target
+// path, running every step regardless of whether the ball happens to
+// collide with a peg that row. Deliberately much weaker per-application
+// than NUDGE_* (it fires ~60x/sec instead of once per row) so it reads as
+// a soft current rather than a rail; tuned empirically alongside NUDGE_*.
+const CONTINUOUS_PULL_GAIN = 0.0;
+const CONTINUOUS_PULL_CAP = 3;
 const FIXED_DT_MS = 1000 / 60;
 const MAX_SUBSTEPS_PER_FRAME = 5; // clamps a lag spike instead of a runaway catch-up spiral
 const BOARD_TOP_MARGIN = 8;
@@ -39,7 +60,7 @@ const BOARD_BOTTOM_MARGIN = 36;
 // physics resolves, so a stuck ball is a UX problem, not a fairness one —
 // past this many simulated milliseconds it's force-settled the same way
 // the bottom-of-board safety net does.
-const MAX_FALL_MS = 4500;
+const MAX_FALL_MS = 8000;
 
 function slotSize(boardWidth, rows) {
   return boardWidth / (rows + 2);
@@ -119,18 +140,55 @@ function createWorld(Matter, { rows, boardWidth, boardHeight }) {
       const bitDirection = ball.plugin.bits[row - 1] === 1 ? 1 : -1;
       const direction = error !== 0 ? Math.sign(error) : bitDirection;
       const jitter = 0.6 + Math.random() * 0.4;
+      const magnitude = Math.min(NUDGE_BASE + NUDGE_GAIN * Math.abs(error), NUDGE_MAGNITUDE_CAP);
 
       Matter.Body.setVelocity(ball, {
-        x: ball.velocity.x + direction * NUDGE_MAGNITUDE * jitter,
+        x: ball.velocity.x + direction * magnitude * jitter,
         y: ball.velocity.y,
       });
+    }
+  });
+
+  // Per-collision nudges alone leave gaps: a ball can drift straight through
+  // the space between two adjacent pegs without touching either (a normal,
+  // expected outcome on a real Galton board — pegs are ~43px apart, ball+peg
+  // combined radius is only ~11px), which skips that row's only correction
+  // opportunity entirely. Measured empirically: roughly half of all balls
+  // miss at least one of the last couple of rows this way, and on an
+  // extreme all-one-direction path (the highest-multiplier buckets) those
+  // are exactly the corrections that matter most — leaving the ball
+  // hundreds of pixels from its bucket by the time the bottom clamp
+  // teleports it there. This adds a second, continuous correction that runs
+  // every physics step regardless of whether a collision happens: gently
+  // pulled toward the target path interpolated between this row's and the
+  // next row's known-correct X, so drift gets corrected continuously
+  // instead of only at (unreliable) discrete peg hits.
+  Matter.Events.on(engine, "beforeUpdate", () => {
+    for (const body of world.bodies) {
+      const ball = body.plugin;
+      if (!ball?.isBall || ball.settled) continue;
+
+      const continuousRow = Math.max(
+        0,
+        Math.min(ball.rows, ((body.position.y - BOARD_TOP_MARGIN) / (ball.boardHeight - BOARD_BOTTOM_MARGIN)) * (ball.rows + 1))
+      );
+      const rowFloor = Math.floor(continuousRow);
+      const rowFrac = continuousRow - rowFloor;
+      const fromX = ball.targetXPerRow[rowFloor];
+      const toX = ball.targetXPerRow[Math.min(rowFloor + 1, ball.rows)];
+      const interpolatedTargetX = fromX + (toX - fromX) * rowFrac;
+
+      const error = interpolatedTargetX - body.position.x;
+      const pull = Math.max(-CONTINUOUS_PULL_CAP, Math.min(CONTINUOUS_PULL_CAP, error * CONTINUOUS_PULL_GAIN));
+
+      Matter.Body.setVelocity(body, { x: body.velocity.x + pull, y: body.velocity.y });
     }
   });
 
   return { engine, world, pegBodies };
 }
 
-function spawnBall(Matter, world, { id, bits, bucket, boardWidth, rows }) {
+function spawnBall(Matter, world, { id, bits, bucket, boardWidth, boardHeight, rows }) {
   const targetXPerRow = [boardWidth / 2];
   let rightsSoFar = 0;
   for (let row = 1; row <= rows; row++) {
@@ -149,7 +207,7 @@ function spawnBall(Matter, world, { id, bits, bucket, boardWidth, rows }) {
     // sharing the same (statistically common, central) path will visibly
     // pass through one another as a result — an accepted tradeoff.
     collisionFilter: { group: -1 },
-    plugin: { isBall: true, id, bits, bucket, targetXPerRow, lastNudgedRow: 0, settled: false },
+    plugin: { isBall: true, id, bits, bucket, targetXPerRow, rows, boardHeight, lastNudgedRow: 0, settled: false },
   });
 
   Matter.World.add(world, body);
