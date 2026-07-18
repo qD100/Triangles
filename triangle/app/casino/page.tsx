@@ -1,21 +1,18 @@
 import { Cinzel } from "next/font/google";
 import Link from "next/link";
 import GameCard, { type CasinoGame } from "./GameCard";
-import { MinesIcon, PlinkoIcon, RouletteIcon, SlotsIcon } from "./GameIcons";
+import { MinesIcon, RouletteIcon, SlotsIcon } from "./GameIcons";
 
 const cinzel = Cinzel({ subsets: ["latin"], weight: ["600", "700"] });
 
 // Adding a new game is just appending one entry here — the homepage grid
 // renders straight from this list, nothing else needs to change.
+//
+// Plinko is temporarily pulled from this list while its physics are
+// reworked further — the route/component itself is untouched and still
+// live at /casino/plinko, just not linked from the hub. Re-add the entry
+// below (icon: PlinkoIcon, from "./GameIcons") to bring it back.
 const GAMES: CasinoGame[] = [
-  {
-    id: "plinko",
-    title: "Plinko",
-    description: "Drop the ball, chase the multiplier.",
-    icon: PlinkoIcon,
-    href: "/casino/plinko",
-    accent: "violet",
-  },
   {
     id: "mines",
     title: "Mines",
@@ -70,7 +67,7 @@ export default function CasinoPage() {
           </p>
         </div>
 
-        <div className="grid w-full max-w-5xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-4">
+        <div className="grid w-full max-w-4xl grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
           {GAMES.map((game) => (
             <GameCard key={game.id} game={game} />
           ))}
