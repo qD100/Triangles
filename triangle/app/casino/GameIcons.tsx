@@ -5,13 +5,26 @@
 // matching the games' own inline-CSS-in-JS convention and the Shadows of
 // Evil token palette (purple/gold/teal).
 
+// 4-row pyramid (1, 2, 3, 4 pegs) with constant peg-to-peg spacing, matching
+// a real Galton board's expanding-triangle shape rather than a loose
+// triangle of 3 dots.
+const PEG_STEP = 20; // %, constant spacing so each row is genuinely wider than the last
+const PLINKO_ROWS = [1, 2, 3, 4].map((count, r) => {
+  const top = 12 + r * 24; // %
+  const start = -((count - 1) * PEG_STEP) / 2;
+  return Array.from({ length: count }, (_, i) => ({
+    top,
+    left: 50 + start + i * PEG_STEP,
+  }));
+}).flat();
+
 export function PlinkoIcon() {
   return (
     <div className="gi-plinko">
       <style>{ICON_CSS}</style>
-      <span className="gi-peg" style={{ left: "30%", top: "26%" }} />
-      <span className="gi-peg" style={{ left: "50%", top: "50%" }} />
-      <span className="gi-peg" style={{ left: "70%", top: "26%" }} />
+      {PLINKO_ROWS.map((p, i) => (
+        <span key={i} className="gi-peg" style={{ left: `${p.left}%`, top: `${p.top}%` }} />
+      ))}
       <span className="gi-plinko-ball" />
     </div>
   );
@@ -59,21 +72,22 @@ export function SlotsIcon() {
 const ICON_CSS = `
 .gi-plinko, .gi-mines, .gi-roulette, .gi-slots { position: relative; width: 40px; height: 40px; }
 
-.gi-peg { position: absolute; width: 4px; height: 4px; border-radius: 50%; background: #9333EA; box-shadow: 0 0 4px #9333EA; transform: translate(-50%, -50%); }
+.gi-peg { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: #9333EA; box-shadow: 0 0 4px #9333EA; transform: translate(-50%, -50%); }
 .gi-plinko-ball {
-  position: absolute; left: 50%; top: 0; width: 8px; height: 8px; border-radius: 50%;
+  position: absolute; left: 50%; top: 0; width: 7px; height: 7px; border-radius: 50%;
   background: radial-gradient(circle at 30% 30%, #fff8e1, #E5B94E 60%, #b9790f);
   box-shadow: 0 0 6px #E5B94E; transform: translate(-50%, 0);
-  animation: gi-plinko-drop 2.4s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+  animation: gi-plinko-drop 2.6s cubic-bezier(0.45, 0, 0.55, 1) infinite;
 }
 @keyframes gi-plinko-drop {
   0% { top: 0%; left: 50%; opacity: 0; }
-  8% { opacity: 1; }
-  35% { top: 42%; left: 30%; }
-  55% { top: 58%; left: 68%; }
-  80% { top: 92%; left: 45%; }
-  92% { opacity: 1; }
-  100% { top: 100%; left: 45%; opacity: 0; }
+  6% { opacity: 1; }
+  24% { top: 12%; left: 40%; }
+  42% { top: 36%; left: 61%; }
+  60% { top: 60%; left: 30%; }
+  80% { top: 84%; left: 60%; }
+  92% { top: 100%; left: 55%; opacity: 1; }
+  100% { top: 108%; left: 55%; opacity: 0; }
 }
 
 .gi-mines { display: flex; align-items: center; justify-content: center; }
