@@ -9,5 +9,5 @@ export const metadata: Metadata = {
 };
 
 export default function CasinoLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-screen bg-[#090909]">{children}</div>;
+  return <div className="min-h-screen bg-[#0A0612]">{children}</div>;
 }

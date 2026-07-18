@@ -65,7 +65,7 @@ const CASH_UP_AMOUNTS = [10, 100, 1000, 10000];
 const nowClock = () => new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
 
 export default function MinesCasino() {
-  const [balance, setBalance] = useState(1.0); // simulated units, "sBTC"
+  const [balance, setBalance] = useState(1.0); // simulated units, "Essence"
   const [bet, setBet] = useState(0.001);
   const [mineCount, setMineCount] = useState(5);
   const [clientSeed, setClientSeed] = useState("player-seed-0001");
@@ -164,12 +164,12 @@ export default function MinesCasino() {
 
       <div className="mc-topbar">
         <div className="mc-brand">
-          <span className="mc-brand-mark">◆</span>
-          <span className="mc-brand-name">DEEPFIELD</span>
+          <span className="mc-brand-mark">☣</span>
+          <span className="mc-brand-name">MORG CITY</span>
           <span className="mc-brand-tag">provably fair · demo</span>
         </div>
         <div className="mc-wallet">
-          <span className="mc-wallet-label">sBTC balance</span>
+          <span className="mc-wallet-label">Essence</span>
           <span className="mc-wallet-value">{fmt(balance)}</span>
         </div>
       </div>
@@ -345,24 +345,26 @@ export default function MinesCasino() {
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Oswald:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 .mc-root {
-  --bg: #0D1117;
-  --panel: #161B22;
-  --panel-alt: #1C2128;
-  --border: #2A313C;
-  --text: #E6EDF3;
-  --muted: #7D8590;
-  --gold: #F0B429;
-  --gold-dim: #F0B42922;
-  --teal: #2DD4BF;
-  --danger: #EF4444;
-  --danger-dim: #EF444422;
+  --bg: #0A0612;
+  --panel: #171025;
+  --panel-alt: #1A1128;
+  --border: #3D2B5C;
+  --text: #E8E0F5;
+  --muted: #8B7BA8;
+  --gold: #E5B94E;
+  --gold-dim: #E5B94E22;
+  --teal: #3DDBD9;
+  --danger: #E5484D;
+  --danger-dim: #E5484D22;
+  --purple: #9333EA;
+  --purple-dim: #9333EA22;
 
   background: var(--bg);
   color: var(--text);
-  font-family: 'Inter', sans-serif;
+  font-family: 'Oswald', sans-serif;
   width: 100vw; height: 100vh; box-sizing: border-box;
   padding: 20px; display: flex; flex-direction: column;
   overflow-x: hidden; overflow-y: auto;
@@ -374,7 +376,7 @@ const CSS = `
 .mc-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .mc-brand { display: flex; align-items: baseline; gap: 8px; }
 .mc-brand-mark { color: var(--gold); font-size: 16px; }
-.mc-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
+.mc-brand-name { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
 .mc-brand-tag { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
 .mc-wallet { text-align: right; }
 .mc-wallet-label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
@@ -399,7 +401,7 @@ const CSS = `
 }
 .mc-verify-btn {
   margin-left: auto; display: flex; align-items: center; gap: 6px;
-  background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955;
+  background: var(--gold-dim); color: var(--gold); border: 1px solid #E5B94E55;
   border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500;
 }
 
@@ -424,11 +426,11 @@ const CSS = `
   border-radius: 8px; display: flex; align-items: center; justify-content: center;
   color: var(--muted); cursor: pointer; transition: all 0.12s ease;
 }
-.mc-tile:hover:not(:disabled) { border-color: var(--gold); background: #21272f; }
+.mc-tile:hover:not(:disabled) { border-color: var(--gold); background: #241a38; }
 .mc-tile:disabled { cursor: default; }
-.mc-tile-safe { background: var(--gold-dim); border-color: #F0B42966; color: var(--gold); }
+.mc-tile-safe { background: var(--gold-dim); border-color: #E5B94E66; color: var(--gold); }
 .mc-tile-hit { background: var(--danger-dim); border-color: var(--danger); color: var(--danger); }
-.mc-tile-mine { background: var(--panel-alt); border-color: var(--border); color: #4a5361; }
+.mc-tile-mine { background: var(--panel-alt); border-color: var(--border); color: #5C4A80; }
 .mc-mine-dim { opacity: 0.55; }
 .mc-hint { margin-top: 10px; text-align: center; color: var(--muted); font-size: 12px; }
 
@@ -467,11 +469,11 @@ const CSS = `
 
 .mc-result { text-align: center; font-size: 12px; padding: 6px; border-radius: 6px; }
 .mc-result.bad { background: var(--danger-dim); color: var(--danger); }
-.mc-result.good { background: #2DD4BF22; color: var(--teal); }
+.mc-result.good { background: #3DDBD922; color: var(--teal); }
 
 .mc-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .mc-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
-.mc-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
+.mc-cashup-btn:hover { border-color: var(--teal); background: #3DDBD914; }
 
 @media (max-width: 860px) {
   .mc-main { flex-direction: column; }

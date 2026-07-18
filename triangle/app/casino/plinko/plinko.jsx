@@ -402,8 +402,8 @@ export default function Plinko() {
 
       <div className="pk-topbar">
         <div className="pk-brand">
-          <span className="pk-brand-mark">◆</span>
-          <span className="pk-brand-name">DEEPFIELD</span>
+          <span className="pk-brand-mark">☣</span>
+          <span className="pk-brand-name">MORG CITY</span>
           <span className="pk-brand-tag">plinko · provably fair</span>
         </div>
         <div className="pk-topbar-right">
@@ -416,7 +416,7 @@ export default function Plinko() {
             {muted ? <VolumeX size={16} /> : <Volume2 size={16} />}
           </button>
           <div className="pk-wallet">
-            <span className="pk-wallet-label">sBTC balance</span>
+            <span className="pk-wallet-label">Essence</span>
             <span className="pk-wallet-value">{fmt(balance)}</span>
           </div>
         </div>
@@ -571,7 +571,7 @@ export default function Plinko() {
         </div>
         <div className="pk-stat-box">
           <span className="pk-stat-box-k">Total profit / loss</span>
-          <span className={`pk-stat-box-v mono ${totalProfit >= 0 ? "good" : "bad"}`}>{totalProfit >= 0 ? "+" : ""}{fmt(totalProfit, 2)} sBTC</span>
+          <span className={`pk-stat-box-v mono ${totalProfit >= 0 ? "good" : "bad"}`}>{totalProfit >= 0 ? "+" : ""}{fmt(totalProfit, 2)} Essence</span>
         </div>
         <div className="pk-stat-box">
           <span className="pk-stat-box-k">Highest multiplier</span>
@@ -594,16 +594,16 @@ function drawBoard(ctx, { boardWidth, boardHeight, pegs, balls }) {
     boardWidth / 2, boardHeight * 0.25, 10,
     boardWidth / 2, boardHeight * 0.25, Math.max(boardWidth, boardHeight) * 0.85
   );
-  bg.addColorStop(0, "#171d26");
-  bg.addColorStop(1, "#0c1017");
+  bg.addColorStop(0, "#1E1430");
+  bg.addColorStop(1, "#0A0612");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, boardWidth, boardHeight);
 
   for (const peg of pegs) {
     const grad = ctx.createRadialGradient(peg.x - 1.2, peg.y - 1.2, 0.3, peg.x, peg.y, physics.PEG_RADIUS);
-    grad.addColorStop(0, "#d7dee6");
-    grad.addColorStop(0.55, "#8a93a0");
-    grad.addColorStop(1, "#3c4550");
+    grad.addColorStop(0, "#E4DBF2");
+    grad.addColorStop(0.55, "#9C8FB8");
+    grad.addColorStop(1, "#4A3866");
     ctx.beginPath();
     ctx.arc(peg.x, peg.y, physics.PEG_RADIUS, 0, Math.PI * 2);
     ctx.fillStyle = grad;
@@ -612,7 +612,7 @@ function drawBoard(ctx, { boardWidth, boardHeight, pegs, balls }) {
 
   for (const ball of balls) {
     ctx.save();
-    ctx.shadowColor = "rgba(240,180,41,0.8)";
+    ctx.shadowColor = "rgba(229,185,78,0.8)";
     ctx.shadowBlur = ball.settled ? 16 : 9;
     const grad = ctx.createRadialGradient(ball.x - 2, ball.y - 2.2, 0.5, ball.x, ball.y, physics.BALL_RADIUS);
     grad.addColorStop(0, "#fff8e1");
@@ -627,13 +627,14 @@ function drawBoard(ctx, { boardWidth, boardHeight, pegs, balls }) {
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Oswald:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 .pk-root {
-  --bg: #0D1117; --panel: #161B22; --panel-alt: #1C2128; --border: #2A313C;
-  --text: #E6EDF3; --muted: #7D8590; --gold: #F0B429; --gold-dim: #F0B42922;
-  --teal: #2DD4BF; --danger: #EF4444; --danger-dim: #EF444422;
-  background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
+  --bg: #0A0612; --panel: #171025; --panel-alt: #1A1128; --border: #3D2B5C;
+  --text: #E8E0F5; --muted: #8B7BA8; --gold: #E5B94E; --gold-dim: #E5B94E22;
+  --teal: #3DDBD9; --danger: #E5484D; --danger-dim: #E5484D22;
+  --purple: #9333EA; --purple-dim: #9333EA22;
+  background: var(--bg); color: var(--text); font-family: 'Oswald', sans-serif;
   width: 100vw; height: 100vh; box-sizing: border-box;
   padding: 20px; display: flex; flex-direction: column;
   overflow-x: hidden; overflow-y: auto;
@@ -645,11 +646,11 @@ const CSS = `
 .pk-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .pk-brand { display: flex; align-items: baseline; gap: 8px; }
 .pk-brand-mark { color: var(--gold); font-size: 16px; }
-.pk-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
+.pk-brand-name { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
 .pk-brand-tag { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
 .pk-topbar-right { display: flex; align-items: center; gap: 10px; }
 .pk-mute-btn { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: 8px; background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); cursor: pointer; }
-.pk-mute-btn:hover { color: var(--text); border-color: #454f5c; }
+.pk-mute-btn:hover { color: var(--text); border-color: #5C4A80; }
 .pk-wallet { text-align: right; }
 .pk-wallet-label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
 .pk-wallet-value { font-family: 'JetBrains Mono', monospace; font-size: 17px; font-weight: 600; color: var(--gold); }
@@ -661,7 +662,7 @@ const CSS = `
 .pk-ledger-sep { width: 1px; height: 22px; background: var(--border); }
 .pk-seed-input { background: var(--panel-alt); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 8px; font-size: 12px; width: 150px; }
 .pk-inline-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
-.pk-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.pk-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #E5B94E55; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
 
 .pk-main { display: flex; gap: 20px; flex: 1 1 auto; min-height: 0; }
 
@@ -679,14 +680,14 @@ const CSS = `
 .pk-board-canvas { display: block; width: 100%; height: 100%; }
 .pk-buckets { display: flex; gap: 2px; margin-top: 6px; max-width: 1100px; flex-shrink: 0; }
 .pk-bucket { flex: 1; text-align: center; font-size: 10px; padding: 6px 0; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-weight: 600; background: var(--panel-alt); color: var(--muted); border: 1px solid var(--border); }
-.pk-bucket.lo { color: #6b7280; }
+.pk-bucket.lo { color: #6E5C94; }
 .pk-bucket.mid { color: var(--teal); }
 .pk-bucket.hi { color: var(--gold); }
 .pk-bucket.landed { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
 .pk-bucket-counts { display: flex; gap: 2px; margin-top: 3px; max-width: 1100px; flex-shrink: 0; }
 .pk-bucket-count { flex: 1; text-align: center; font-size: 10px; color: var(--muted); }
 .pk-payout-msg { margin-top: 10px; font-size: 12px; padding: 4px 12px; border-radius: 6px; flex-shrink: 0; box-sizing: border-box; height: 26px; background: transparent; }
-.pk-payout-msg.good { background: #2DD4BF22; }
+.pk-payout-msg.good { background: #3DDBD922; }
 .pk-payout-msg.bad { background: var(--danger-dim); }
 
 .pk-panel { flex: 1; max-width: 300px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; }
@@ -705,7 +706,7 @@ const CSS = `
 .pk-primary-btn:disabled { opacity: 0.4; cursor: default; }
 
 .pk-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
-.pk-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
+.pk-cashup-btn:hover { border-color: var(--teal); background: #3DDBD914; }
 
 .pk-stats-bar { display: flex; gap: 12px; margin-top: 14px; flex-shrink: 0; }
 .pk-stat-box { flex: 1; background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }

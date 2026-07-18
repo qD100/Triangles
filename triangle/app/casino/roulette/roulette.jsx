@@ -167,12 +167,12 @@ export default function Roulette() {
 
       <div className="rl-topbar">
         <div className="rl-brand">
-          <span className="rl-brand-mark">◆</span>
-          <span className="rl-brand-name">DEEPFIELD</span>
+          <span className="rl-brand-mark">☣</span>
+          <span className="rl-brand-name">MORG CITY</span>
           <span className="rl-brand-tag">roulette · provably fair</span>
         </div>
         <div className="rl-wallet">
-          <span className="rl-wallet-label">sBTC balance</span>
+          <span className="rl-wallet-label">Essence</span>
           <span className="rl-wallet-value">{fmt(balance)}</span>
         </div>
       </div>
@@ -352,20 +352,21 @@ export default function Roulette() {
 function wheelGradient() {
   const stops = [];
   WHEEL_ORDER.forEach((n, i) => {
-    const c = colorOf(n) === "red" ? "#B91C1C" : colorOf(n) === "black" ? "#161B22" : "#0F766E";
+    const c = colorOf(n) === "red" ? "#A3223F" : colorOf(n) === "black" ? "#1A1128" : "#0F9B86";
     stops.push(`${c} ${i * SLICE}deg ${(i + 1) * SLICE}deg`);
   });
   return `conic-gradient(${stops.join(",")})`;
 }
 
 const CSS = `
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Oswald:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 .rl-root {
-  --bg: #0D1117; --panel: #161B22; --panel-alt: #1C2128; --border: #2A313C;
-  --text: #E6EDF3; --muted: #7D8590; --gold: #F0B429; --gold-dim: #F0B42922;
-  --teal: #2DD4BF; --danger: #EF4444; --danger-dim: #EF444422;
-  background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif;
+  --bg: #0A0612; --panel: #171025; --panel-alt: #1A1128; --border: #3D2B5C;
+  --text: #E8E0F5; --muted: #8B7BA8; --gold: #E5B94E; --gold-dim: #E5B94E22;
+  --teal: #3DDBD9; --danger: #E5484D; --danger-dim: #E5484D22;
+  --purple: #9333EA; --purple-dim: #9333EA22;
+  background: var(--bg); color: var(--text); font-family: 'Oswald', sans-serif;
   width: 100vw; height: 100vh; box-sizing: border-box;
   padding: 20px; display: flex; flex-direction: column;
   overflow-x: hidden; overflow-y: auto;
@@ -377,7 +378,7 @@ const CSS = `
 .rl-topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-shrink: 0; }
 .rl-brand { display: flex; align-items: baseline; gap: 8px; }
 .rl-brand-mark { color: var(--gold); font-size: 16px; }
-.rl-brand-name { font-family: 'Space Grotesk', sans-serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
+.rl-brand-name { font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 0.5px; font-size: 16px; }
 .rl-brand-tag { color: var(--muted); font-size: 11px; font-family: 'JetBrains Mono', monospace; }
 .rl-wallet { text-align: right; }
 .rl-wallet-label { display: block; color: var(--muted); font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; }
@@ -390,7 +391,7 @@ const CSS = `
 .rl-ledger-sep { width: 1px; height: 22px; background: var(--border); }
 .rl-seed-input { background: var(--panel-alt); border: 1px solid var(--border); color: var(--text); border-radius: 6px; padding: 4px 8px; font-size: 12px; width: 150px; }
 .rl-inline-btn { background: none; border: none; color: var(--teal); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 5px; padding: 0; }
-.rl-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #F0B42955; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
+.rl-verify-btn { margin-left: auto; display: flex; align-items: center; gap: 6px; background: var(--gold-dim); color: var(--gold); border: 1px solid #E5B94E55; border-radius: 8px; padding: 6px 12px; font-size: 12px; cursor: pointer; font-weight: 500; }
 
 .rl-main { display: flex; gap: 32px; flex: 1 1 auto; min-height: 0; justify-content: center; align-items: center; }
 
@@ -406,14 +407,14 @@ const CSS = `
 .rl-pointer { width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 18px solid var(--gold); margin-bottom: -4px; z-index: 2; }
 .rl-wheel-outer { position: relative; width: 420px; height: 420px; border-radius: 50%; border: 5px solid var(--panel-alt); box-shadow: 0 0 0 1px var(--border); }
 .rl-wheel { position: absolute; inset: 0; border-radius: 50%; }
-.rl-wheel-label { position: absolute; top: 50%; left: 50%; font-size: 12px; color: #E6EDF3cc; font-family: 'JetBrains Mono', monospace; transform-origin: 0 0; }
+.rl-wheel-label { position: absolute; top: 50%; left: 50%; font-size: 12px; color: #E8E0F5cc; font-family: 'JetBrains Mono', monospace; transform-origin: 0 0; }
 .rl-wheel-hub { position: absolute; inset: 0; margin: auto; width: 80px; height: 80px; border-radius: 50%; background: var(--bg); border: 2px solid var(--gold); }
 .rl-winning-badge { margin-top: 16px; width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: 'JetBrains Mono', monospace; font-weight: 600; font-size: 18px; border: 2px solid var(--border); }
-.rl-winning-badge.red { background: #B91C1C; }
-.rl-winning-badge.black { background: #161B22; }
-.rl-winning-badge.green { background: #0F766E; }
+.rl-winning-badge.red { background: #A3223F; }
+.rl-winning-badge.black { background: #1A1128; }
+.rl-winning-badge.green { background: #0F9B86; }
 .rl-payout-msg { margin-top: 8px; font-size: 12px; padding: 4px 10px; border-radius: 6px; }
-.rl-payout-msg.good { background: #2DD4BF22; color: var(--teal); }
+.rl-payout-msg.good { background: #3DDBD922; color: var(--teal); }
 .rl-payout-msg.bad { background: var(--danger-dim); color: var(--danger); }
 
 .rl-panel { flex: 1; max-width: 500px; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; min-height: 0; }
@@ -424,11 +425,11 @@ const CSS = `
 .rl-bet-quick button { background: var(--panel-alt); border: 1px solid var(--border); color: var(--muted); border-radius: 6px; padding: 0 10px; cursor: pointer; font-size: 12px; }
 
 .rl-board { background: var(--panel-alt); border: 1px solid var(--border); border-radius: 10px; padding: 8px; }
-.rl-zero { background: #0F766E; border-radius: 6px; padding: 8px; font-size: 13px; text-align: center; cursor: pointer; margin-bottom: 5px; display: flex; justify-content: center; gap: 6px; }
+.rl-zero { background: #0F9B86; border-radius: 6px; padding: 8px; font-size: 13px; text-align: center; cursor: pointer; margin-bottom: 5px; display: flex; justify-content: center; gap: 6px; }
 .rl-numgrid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 4px; margin-bottom: 8px; }
 .rl-numcell { font-size: 11px; text-align: center; padding: 8px 0; border-radius: 4px; cursor: pointer; color: #fff; display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.rl-numcell.red { background: #B91C1C; }
-.rl-numcell.black { background: #161B22; border: 1px solid #2A313C; }
+.rl-numcell.red { background: #A3223F; }
+.rl-numcell.black { background: #1A1128; border: 1px solid #3D2B5C; }
 .rl-numcell b, .rl-zero b, .rl-outcell b { font-size: 9px; color: var(--gold); font-weight: 600; }
 .rl-outside { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 5px; }
 .rl-outcell { background: var(--panel); border: 1px solid var(--border); color: var(--text); font-size: 12px; text-align: center; padding: 9px 0; border-radius: 4px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 2px; }
@@ -447,7 +448,7 @@ const CSS = `
 
 .rl-choice-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .rl-cashup-btn { background: var(--panel-alt); border: 1px solid var(--border); color: var(--teal); border-radius: 8px; padding: 8px 0; font-size: 12px; cursor: pointer; font-weight: 600; }
-.rl-cashup-btn:hover { border-color: var(--teal); background: #2DD4BF14; }
+.rl-cashup-btn:hover { border-color: var(--teal); background: #3DDBD914; }
 
 @media (max-width: 1440px) {
   .rl-main { flex-direction: column; align-items: stretch; }
