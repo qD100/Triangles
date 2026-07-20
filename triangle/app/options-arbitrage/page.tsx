@@ -9,10 +9,16 @@ import OptionsMarketPanel from "./OptionsMarketPanel";
 import OptionsEngineCard, { OPTIONS_ENGINES } from "./OptionsEngineCard";
 import OptionsFeed from "./OptionsFeed";
 import OptionsSettingsPanel from "./OptionsSettingsPanel";
+import OptionsPaperTradingPanel from "./OptionsPaperTradingPanel";
 
 export default function OptionsArbitragePage() {
   const scanner = useOptionsScanner();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [highConfidenceOnly, setHighConfidenceOnly] = useState(false);
+
+  const visibleOpportunities = highConfidenceOnly
+    ? scanner.opportunities.filter((opp) => opp.confidence === "high")
+    : scanner.opportunities;
 
   return (
     <>
@@ -47,6 +53,8 @@ export default function OptionsArbitragePage() {
                 settings={scanner.settings}
                 onUpdate={scanner.updateSettings}
                 onClose={() => setSettingsOpen(false)}
+                highConfidenceOnly={highConfidenceOnly}
+                onHighConfidenceOnlyChange={setHighConfidenceOnly}
               />
             )}
           </div>
@@ -61,13 +69,15 @@ export default function OptionsArbitragePage() {
           </p>
         </div>
 
+        <OptionsPaperTradingPanel stats={scanner.paperTrading} />
+
         <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1fr_1fr_1.15fr] lg:gap-6">
           <OptionsMarketPanel market={scanner.market} connected={scanner.connected} />
 
           <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40 sm:h-[640px] lg:h-[820px]">
             <div className="border-b border-zinc-800 p-5">
               <h2 className="text-xl font-bold tracking-wide text-yellow-400">LIVE ARBITRAGE ENGINES</h2>
-              <p className="mt-1 text-sm text-zinc-500">Four scanners running simultaneously</p>
+              <p className="mt-1 text-sm text-zinc-500">Three scanners running simultaneously</p>
             </div>
 
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
@@ -77,7 +87,7 @@ export default function OptionsArbitragePage() {
             </div>
           </section>
 
-          <OptionsFeed opportunities={scanner.opportunities} />
+          <OptionsFeed opportunities={visibleOpportunities} highConfidenceOnly={highConfidenceOnly} />
         </div>
       </main>
 

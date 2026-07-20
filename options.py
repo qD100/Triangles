@@ -42,14 +42,36 @@ market_state = {}
 
 # scanner id -> status snapshot (center panel cards)
 scanner_status = {
-    "core": {"status": "scanning", "contracts_scanned": 0, "last_scan_time": None, "opportunities_count": 0},
+    "putcall": {"status": "scanning", "contracts_scanned": 0, "last_scan_time": None, "opportunities_count": 0},
     "box": {"status": "scanning", "contracts_scanned": 0, "last_scan_time": None, "opportunities_count": 0},
-    "synthetic": {"status": "scanning", "contracts_scanned": 0, "last_scan_time": None, "opportunities_count": 0},
     "chain": {"status": "scanning", "contracts_scanned": 0, "last_scan_time": None, "opportunities_count": 0},
 }
 
 _opportunity_counter = 0
 _exchange_info_cache = {"data": None, "loaded_at": 0.0}
+
+# ================= PAPER TRADING SIMULATOR =================
+# Zero real orders are ever placed. For every HIGH-confidence opportunity
+# (the only tier backed by a confirmed real bid/ask), snapshots the exact
+# executable entry price per leg, then re-prices those same legs against a
+# fresh order book a couple of cycles later (~10s) to see whether the edge
+# would still have been there by the time a real multi-leg order could have
+# gone out. That gap between "flagged" and "still there 10s later" is the
+# actual question this whole feature exists to answer.
+PAPER_RECHECK_AFTER_CYCLES = 2  # ~10s at the 5s poll interval
+PAPER_TRADES_HISTORY_LIMIT = 500
+
+paper_trades_pending = []
+paper_trades_history = collections.deque(maxlen=PAPER_TRADES_HISTORY_LIMIT)
+paper_trading_stats = {
+    "attempted": 0,
+    "held_up": 0,           # realized profit >= 90% of what was flagged
+    "still_profitable": 0,  # realized profit positive but below that bar (real slippage)
+    "vanished": 0,          # no longer profitable, or a leg lost its tradeable quote
+    "total_theoretical_profit": 0.0,
+    "total_realized_profit": 0.0,
+}
+_cycle_counter = 0
 
 
 # ================= WEBSOCKET BROADCAST =================
@@ -260,7 +282,7 @@ def has_tradeable_quote(bid, ask, mark, max_deviation=0.5):
 
 def make_opportunity(scanner, algorithm, underlying, strikes, expiries, formula, inputs,
                       calculation, mispricing, expected_profit, roi_percent, suggested_trade,
-                      confidence="medium"):
+                      confidence="medium", legs=None):
     global _opportunity_counter
     _opportunity_counter += 1
     now = datetime.now()
@@ -283,65 +305,144 @@ def make_opportunity(scanner, algorithm, underlying, strikes, expiries, formula,
         "roi_percent": round(roi_percent, 3),
         "confidence": confidence,
         "suggested_trade": suggested_trade,
+        # Internal only — the exact tradeable legs behind this opportunity,
+        # used to enter a paper trade below. Stripped before broadcast/history.
+        "legs": legs or [],
     }
 
 
-# ================= SCANNER 1: CORE ARBITRAGE (Put-Call Parity) =================
-
-def scan_put_call_parity(chain):
-    opportunities = []
-    contracts_scanned = 0
-    underlying = chain["underlying"]
-    S = chain["spot"]
-
-    for expiry, strikes in chain["by_expiry"].items():
-        for K, sides in strikes.items():
-            call, put = sides.get("C"), sides.get("P")
-
-            if not call or not put:
-                continue
-
-            contracts_scanned += 2
-            r = (call["r"] + put["r"]) / 2
-            T = call["T"]
-            discounted_K = K * math.exp(-r * T)
-
-            lhs = call["mark"] - put["mark"]
-            rhs = S - discounted_K
-            error = lhs - rhs
-
-            fee = estimate_fee(call["mark"], put["mark"], S)
-            edge = abs(error) - fee
-
-            if edge <= settings["min_profit_usd"]:
-                continue
-
-            quoted = (
-                has_tradeable_quote(call["ticker_bid"], call["ticker_ask"], call["mark"])
-                and has_tradeable_quote(put["ticker_bid"], put["ticker_ask"], put["mark"])
-            )
-
-            if error > 0:
-                trade = f"Sell {call['symbol']} (call overpriced), buy {put['symbol']}, buy {underlying[:-4]} spot"
-            else:
-                trade = f"Buy {call['symbol']} (call underpriced), sell {put['symbol']}, short {underlying[:-4]} spot"
-
-            opportunities.append(make_opportunity(
-                scanner="core", algorithm="Put-Call Parity", underlying=underlying,
-                strikes=[K], expiries=[expiry],
-                formula="C - P = S - K*e^(-rT)",
-                inputs={"C": round(call["mark"], 3), "P": round(put["mark"], 3), "S": round(S, 2),
-                        "K": K, "r": round(r, 4), "T": round(T, 4)},
-                calculation=f"C-P = {lhs:.3f}  vs  S-Ke^(-rT) = {rhs:.3f}  ->  error = {error:.3f}",
-                mispricing=error, expected_profit=edge, roi_percent=(edge / max(S, 1)) * 100,
-                suggested_trade=trade,
-                confidence="high" if quoted and edge > fee * 3 else ("medium" if edge > fee * 3 else "low"),
-            ))
-
-    return opportunities, contracts_scanned
+def leg_cost(price, side, qty=1):
+    """Signed cash flow for one leg: buying costs money (positive), selling
+    raises money (negative) — summed across a basket this is what you'd
+    actually pay (positive) or receive (negative) to open it."""
+    return (price if side == "buy" else -price) * qty
 
 
-# ================= SCANNER 2: BOX SPREAD =================
+def leg_fill_price(tickers, marks, symbol, side):
+    """Best-effort executable price for one leg using the freshest ticker;
+    falls back to the mark price (flagged as not confirmed) if the ticker's
+    gone stale or lost its two-sided market since entry — that's exactly
+    the "vanished" case this simulator exists to catch."""
+    ticker = tickers.get(symbol)
+    mark = marks.get(symbol)
+    mark_price = float(mark.get("markPrice") or 0) if mark else 0
+
+    if ticker:
+        try:
+            bid = float(ticker.get("bidPrice") or 0)
+            ask = float(ticker.get("askPrice") or 0)
+        except (TypeError, ValueError):
+            bid = ask = 0.0
+
+        price = ask if side == "buy" else bid
+
+        if price > 0 and has_tradeable_quote(bid, ask, mark_price or price):
+            return price, True
+
+    return mark_price, False
+
+
+def enter_paper_trade(opportunity):
+    """Queues a HIGH-confidence opportunity's exact legs for a re-price a
+    couple of cycles later. No-op for anything without confirmed legs — most
+    opportunities don't carry them yet, and medium/low confidence ones
+    aren't backed by a real order book to begin with."""
+    if opportunity["confidence"] != "high" or not opportunity["legs"]:
+        return
+
+    paper_trades_pending.append({
+        "opportunity_id": opportunity["id"],
+        "scanner": opportunity["scanner"],
+        "algorithm": opportunity["algorithm"],
+        "underlying": opportunity["underlying"],
+        "legs": opportunity["legs"],
+        "entry_edge": opportunity["expected_profit"],
+        "entry_cost": sum(leg_cost(leg["ref_price"], leg["side"], leg.get("qty", 1)) for leg in opportunity["legs"]),
+        "entry_cycle": _cycle_counter,
+        "detected_at": opportunity["detected_at"],
+    })
+
+
+def settle_paper_trades(tickers, marks):
+    """Re-prices every pending paper trade whose recheck cycle has arrived,
+    using the SAME fresh tickers/marks this cycle already fetched for
+    scanning — no extra API calls. Comparing entry cost to recheck cost
+    isolates exactly how much the basket's price drifted in the time it
+    took to "notice and act", the real-world risk this whole simulator is
+    trying to measure."""
+    global paper_trades_pending
+
+    still_pending = []
+    newly_settled = []
+
+    for trade in paper_trades_pending:
+        if _cycle_counter - trade["entry_cycle"] < PAPER_RECHECK_AFTER_CYCLES:
+            still_pending.append(trade)
+            continue
+
+        all_quoted = True
+        recheck_cost = 0.0
+
+        for leg in trade["legs"]:
+            price, quoted = leg_fill_price(tickers, marks, leg["symbol"], leg["side"])
+            all_quoted = all_quoted and quoted
+            recheck_cost += leg_cost(price, leg["side"], leg.get("qty", 1))
+
+        # Positive drift = the basket got cheaper to enter (or a bigger
+        # credit) since detection, i.e. prices moved in your favor.
+        favorable_drift = trade["entry_cost"] - recheck_cost
+        realized_profit = trade["entry_edge"] + favorable_drift
+
+        paper_trading_stats["attempted"] += 1
+        paper_trading_stats["total_theoretical_profit"] += trade["entry_edge"]
+
+        if not all_quoted or realized_profit <= 0:
+            outcome = "vanished"
+            paper_trading_stats["vanished"] += 1
+        elif realized_profit >= trade["entry_edge"] * 0.9:
+            outcome = "held_up"
+            paper_trading_stats["held_up"] += 1
+            paper_trading_stats["total_realized_profit"] += realized_profit
+        else:
+            outcome = "still_profitable"
+            paper_trading_stats["still_profitable"] += 1
+            paper_trading_stats["total_realized_profit"] += realized_profit
+
+        settled = {
+            "opportunity_id": trade["opportunity_id"],
+            "scanner": trade["scanner"],
+            "algorithm": trade["algorithm"],
+            "underlying": trade["underlying"],
+            "entry_edge": round(trade["entry_edge"], 4),
+            "realized_profit": round(realized_profit, 4),
+            "outcome": outcome,
+            "settled_at": datetime.now().strftime("%H:%M:%S"),
+        }
+        paper_trades_history.append(settled)
+        newly_settled.append(settled)
+
+    paper_trades_pending = still_pending
+    return newly_settled
+
+
+def paper_trading_snapshot():
+    attempted = paper_trading_stats["attempted"]
+    filled = paper_trading_stats["held_up"] + paper_trading_stats["still_profitable"]
+
+    return {
+        "attempted": attempted,
+        "held_up": paper_trading_stats["held_up"],
+        "still_profitable": paper_trading_stats["still_profitable"],
+        "vanished": paper_trading_stats["vanished"],
+        "fill_rate_percent": round(100 * filled / attempted, 1) if attempted else None,
+        "total_theoretical_profit": round(paper_trading_stats["total_theoretical_profit"], 2),
+        "total_realized_profit": round(paper_trading_stats["total_realized_profit"], 2),
+        "pending": len(paper_trades_pending),
+        "recent": list(paper_trades_history)[-10:],
+    }
+
+
+# ================= SCANNER: BOX SPREAD =================
 
 def scan_box_spread(chain):
     opportunities = []
@@ -392,6 +493,12 @@ def scan_box_spread(chain):
                             f"buy {p2['symbol']}, sell {p1['symbol']}"
                         ),
                         confidence="high" if long_edge > fee * 3 else "medium",
+                        legs=[
+                            {"symbol": c1["symbol"], "side": "buy", "ref_price": c1["ticker_ask"]},
+                            {"symbol": c2["symbol"], "side": "sell", "ref_price": c2["ticker_bid"]},
+                            {"symbol": p2["symbol"], "side": "buy", "ref_price": p2["ticker_ask"]},
+                            {"symbol": p1["symbol"], "side": "sell", "ref_price": p1["ticker_bid"]},
+                        ],
                     ))
                 elif short_edge > settings["min_profit_usd"]:
                     opportunities.append(make_opportunity(
@@ -407,19 +514,26 @@ def scan_box_spread(chain):
                             f"sell {p2['symbol']}, buy {p1['symbol']}"
                         ),
                         confidence="high" if short_edge > fee * 3 else "medium",
+                        legs=[
+                            {"symbol": c1["symbol"], "side": "sell", "ref_price": c1["ticker_bid"]},
+                            {"symbol": c2["symbol"], "side": "buy", "ref_price": c2["ticker_ask"]},
+                            {"symbol": p2["symbol"], "side": "sell", "ref_price": p2["ticker_bid"]},
+                            {"symbol": p1["symbol"], "side": "buy", "ref_price": p1["ticker_ask"]},
+                        ],
                     ))
 
     return opportunities, contracts_scanned
 
 
-# ================= SCANNER 3: SYNTHETIC ARBITRAGE (Conversion / Reversal) =================
-# Mathematically the same no-arbitrage relationship as put-call parity
-# (S_synth = C - P + Ke^(-rT) is the rearranged parity equation) — presented
-# through a different lens than Scanner 1: aggregated across every strike in
-# an expiry to surface the single best synthetic-vs-spot trade per expiry,
-# rather than re-listing every strike's parity error a second time.
+# ================= SCANNER: PUT-CALL PARITY ARBITRAGE (Conversion / Reversal) =================
+# Put-call parity is the pricing rule (S_synth = C - P + Ke^(-rT), the
+# rearranged parity equation); Conversion and Reverse Conversion are the two
+# tradeable executions of a parity violation, distinguished by which side
+# mispriced. Aggregated across every strike in an expiry to surface the
+# single best synthetic-vs-spot trade per expiry, rather than re-listing
+# every strike's parity error individually.
 
-def scan_synthetic(chain):
+def scan_put_call_parity(chain):
     opportunities = []
     contracts_scanned = 0
     underlying = chain["underlying"]
@@ -464,15 +578,26 @@ def scan_synthetic(chain):
                 f"Synthetic spot overpriced by options market: sell {call['symbol']}, "
                 f"buy {put['symbol']}, buy {underlying[:-4]} spot (Conversion)"
             )
+            # Only the options legs are modeled for paper-trading — the spot
+            # leg is assumed frictionless (deep, instant liquidity on Binance
+            # spot), so the option legs are where real slippage risk lives.
+            legs = [
+                {"symbol": call["symbol"], "side": "sell", "ref_price": call["ticker_bid"]},
+                {"symbol": put["symbol"], "side": "buy", "ref_price": put["ticker_ask"]},
+            ]
         else:
             algorithm = "Reverse Conversion"
             trade = (
                 f"Synthetic spot underpriced by options market: buy {call['symbol']}, "
                 f"sell {put['symbol']}, short {underlying[:-4]} spot (Reversal)"
             )
+            legs = [
+                {"symbol": call["symbol"], "side": "buy", "ref_price": call["ticker_ask"]},
+                {"symbol": put["symbol"], "side": "sell", "ref_price": put["ticker_bid"]},
+            ]
 
         opportunities.append(make_opportunity(
-            scanner="synthetic", algorithm=algorithm, underlying=underlying,
+            scanner="putcall", algorithm=algorithm, underlying=underlying,
             strikes=[K], expiries=[expiry],
             formula="Synthetic Spot = C - P + K*e^(-rT)",
             inputs={"C": round(call["mark"], 3), "P": round(put["mark"], 3), "K": K,
@@ -481,13 +606,16 @@ def scan_synthetic(chain):
             mispricing=error, expected_profit=edge, roi_percent=(edge / max(S, 1)) * 100,
             suggested_trade=trade,
             confidence="high" if quoted and edge > fee * 3 else ("medium" if edge > fee * 3 else "low"),
+            legs=legs if quoted else [],
         ))
 
     return opportunities, contracts_scanned
 
 
-# ================= SCANNER 4: OPTION CHAIN ANALYSIS =================
-# Convexity, Butterfly Arbitrage, Calendar Arbitrage, Pricing Bounds.
+# ================= SCANNER: OPTION CHAIN ARBITRAGE =================
+# Structural pricing inconsistencies across strikes and expirations only —
+# put-call parity itself lives entirely in the scanner above, not here.
+# Vertical Arbitrage, Butterfly Arbitrage, Calendar Arbitrage, Pricing Bounds.
 
 def scan_chain_analysis(chain):
     opportunities = []
@@ -495,7 +623,7 @@ def scan_chain_analysis(chain):
     underlying = chain["underlying"]
     S = chain["spot"]
 
-    # --- Convexity + Butterfly: 3 consecutive strikes, same side, same expiry ---
+    # --- Vertical Arbitrage + Butterfly: 3 consecutive strikes, same side, same expiry ---
     for expiry, strikes in chain["by_expiry"].items():
         for side in ("C", "P"):
             side_strikes = sorted(k for k in strikes if side in strikes[k])
@@ -509,9 +637,10 @@ def scan_chain_analysis(chain):
                 c1, c2, c3 = strikes[K1][side], strikes[K2][side], strikes[K3][side]
                 contracts_scanned += 1
 
-                # Convexity: price must not exceed the strike-weighted average
-                # of its neighbors. w generalizes the equal-spacing "midpoint
-                # average" to unequal strike gaps.
+                # Vertical Arbitrage: price must not exceed the strike-weighted
+                # average of its neighbors (a convexity condition on the
+                # chain). w generalizes the equal-spacing "midpoint average"
+                # to unequal strike gaps.
                 w = (K3 - K2) / (K3 - K1)
                 bound = w * c1["mark"] + (1 - w) * c3["mark"]
                 violation = c2["mark"] - bound
@@ -525,7 +654,7 @@ def scan_chain_analysis(chain):
                     )
 
                     opportunities.append(make_opportunity(
-                        scanner="chain", algorithm="Convexity", underlying=underlying,
+                        scanner="chain", algorithm="Vertical Arbitrage", underlying=underlying,
                         strikes=[K1, K2, K3], expiries=[expiry],
                         formula="C(K2) <= w*C(K1) + (1-w)*C(K3),  w = (K3-K2)/(K3-K1)",
                         inputs={"K1": K1, "K2": K2, "K3": K3, "side": side, "w": round(w, 4)},
@@ -534,9 +663,14 @@ def scan_chain_analysis(chain):
                         roi_percent=(edge / max(c2["mark"], 1)) * 100,
                         suggested_trade=(
                             f"Sell {c2['symbol']}, buy {c1['symbol']} and {c3['symbol']} "
-                            f"(weighted {w:.2f}/{1 - w:.2f}) — convexity violation"
+                            f"(weighted {w:.2f}/{1 - w:.2f}) — vertical arbitrage violation"
                         ),
                         confidence="high" if quoted and edge > fee * 3 else ("medium" if edge > fee * 3 else "low"),
+                        legs=[
+                            {"symbol": c2["symbol"], "side": "sell", "ref_price": c2["ticker_bid"]},
+                            {"symbol": c1["symbol"], "side": "buy", "ref_price": c1["ticker_ask"]},
+                            {"symbol": c3["symbol"], "side": "buy", "ref_price": c3["ticker_ask"]},
+                        ] if quoted else [],
                     ))
 
                 # Butterfly Arbitrage: the tradeable structure, equally-spaced
@@ -564,6 +698,11 @@ def scan_chain_analysis(chain):
                                 f"(long butterfly opens for a net credit)"
                             ),
                             confidence="high",
+                            legs=[
+                                {"symbol": c1["symbol"], "side": "buy", "ref_price": c1["ticker_ask"]},
+                                {"symbol": c2["symbol"], "side": "sell", "ref_price": c2["ticker_bid"], "qty": 2},
+                                {"symbol": c3["symbol"], "side": "buy", "ref_price": c3["ticker_ask"]},
+                            ],
                         ))
 
     # --- Calendar Arbitrage: calls only, same strike, consecutive expiries ---
@@ -607,6 +746,10 @@ def scan_chain_analysis(chain):
                     roi_percent=(edge / max(back["mark"], 1)) * 100,
                     suggested_trade=f"Sell {front['symbol']}, buy {back['symbol']} (calendar spread)",
                     confidence="high" if quoted and edge > fee * 3 else ("medium" if edge > fee * 3 else "low"),
+                    legs=[
+                        {"symbol": front["symbol"], "side": "sell", "ref_price": front["ticker_bid"]},
+                        {"symbol": back["symbol"], "side": "buy", "ref_price": back["ticker_ask"]},
+                    ] if quoted else [],
                 ))
 
     # --- Pricing Bounds: per-contract lower/upper/intrinsic checks ---
@@ -646,6 +789,7 @@ def scan_chain_analysis(chain):
                         roi_percent=(lower_edge / max(mark, 1)) * 100,
                         suggested_trade=f"Buy {contract['symbol']} (priced below its no-arbitrage floor)",
                         confidence=confidence,
+                        legs=[{"symbol": contract["symbol"], "side": "buy", "ref_price": contract["ticker_ask"]}] if quoted else [],
                     ))
                 elif upper_edge > settings["min_profit_usd"]:
                     opportunities.append(make_opportunity(
@@ -658,6 +802,7 @@ def scan_chain_analysis(chain):
                         roi_percent=(upper_edge / max(mark, 1)) * 100,
                         suggested_trade=f"Sell {contract['symbol']} (priced above its no-arbitrage ceiling)",
                         confidence=confidence,
+                        legs=[{"symbol": contract["symbol"], "side": "sell", "ref_price": contract["ticker_bid"]}] if quoted else [],
                     ))
                 elif side == "C" and intrinsic_edge > settings["min_profit_usd"]:
                     # Calls only. For calls, Ke^(-rT) <= K means the
@@ -683,15 +828,15 @@ def scan_chain_analysis(chain):
                         roi_percent=(intrinsic_edge / max(mark, 1)) * 100,
                         suggested_trade=f"Buy {contract['symbol']} (priced below intrinsic/exercise value)",
                         confidence=confidence,
+                        legs=[{"symbol": contract["symbol"], "side": "buy", "ref_price": contract["ticker_ask"]}] if quoted else [],
                     ))
 
     return opportunities, contracts_scanned
 
 
 SCANNERS = [
-    ("core", scan_put_call_parity),
+    ("putcall", scan_put_call_parity),
     ("box", scan_box_spread),
-    ("synthetic", scan_synthetic),
     ("chain", scan_chain_analysis),
 ]
 
@@ -699,10 +844,13 @@ SCANNERS = [
 # ================= RUN LOOP =================
 
 def run_forever():
+    global _cycle_counter
+
     print("[options] Starting Options Arbitrage Scanner...")
 
     while True:
         cycle_start = time.time()
+        _cycle_counter += 1
 
         try:
             exchange_info = get_exchange_info()
@@ -713,6 +861,8 @@ def run_forever():
             traceback.print_exc()
             time.sleep(POLL_INTERVAL_SECONDS)
             continue
+
+        settle_paper_trades(tickers, marks)
 
         opportunities_this_cycle = collections.defaultdict(list)
         contracts_scanned_this_cycle = collections.defaultdict(int)
@@ -760,8 +910,12 @@ def run_forever():
             all_new_opportunities.extend(found)
 
         for opportunity in all_new_opportunities:
-            events_history.append(opportunity)
-            send_opportunity(opportunity)
+            enter_paper_trade(opportunity)
+            # `legs` is internal-only (feeds the paper-trading simulator
+            # above) — strip it before it goes to a browser.
+            public_opportunity = {k: v for k, v in opportunity.items() if k != "legs"}
+            events_history.append(public_opportunity)
+            send_opportunity(public_opportunity)
 
         cycle_duration_ms = (time.time() - cycle_start) * 1000
         cycle_durations.append(cycle_duration_ms)
@@ -777,6 +931,7 @@ def run_forever():
                 "avg_scan_time_ms": round(sum(cycle_durations) / len(cycle_durations), 1),
                 "last_update": now_str,
             },
+            "paper_trading": paper_trading_snapshot(),
         })
 
         elapsed = time.time() - cycle_start

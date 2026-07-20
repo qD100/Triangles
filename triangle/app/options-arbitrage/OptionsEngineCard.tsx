@@ -12,30 +12,37 @@ export type EngineDef = {
   infoSlug: InfoDocSlug;
 };
 
-// Adding a fifth engine later is one entry here plus one activity-phrase
-// list below — the center column renders straight from this array.
+// Three non-overlapping scanners: Put-Call Parity Arbitrage (the pricing
+// rule, executed as Conversion/Reverse Conversion), Box Spread Arbitrage,
+// and Option Chain Arbitrage (structural pricing consistency across strikes
+// and expirations only — no parity check lives there). Adding another
+// engine later is one entry here plus one activity-phrase list below — the
+// center column renders straight from this array.
 export const OPTIONS_ENGINES: EngineDef[] = [
-  { id: "core", title: "Core Arbitrage", algorithms: ["Put-Call Parity"], infoSlug: "put-call-parity" },
-  { id: "box", title: "Box Spread", algorithms: ["Long Box", "Short Box"], infoSlug: "box-spread" },
   {
-    id: "synthetic",
-    title: "Synthetic Arbitrage",
+    id: "putcall",
+    title: "Put-Call Parity Arbitrage",
     algorithms: ["Conversion", "Reverse Conversion"],
-    infoSlug: "synthetic-conversion",
+    infoSlug: "put-call-parity",
+  },
+  {
+    id: "box",
+    title: "Box Spread Arbitrage",
+    algorithms: ["Long Box", "Short Box"],
+    infoSlug: "box-spread",
   },
   {
     id: "chain",
-    title: "Option Chain Analysis",
-    algorithms: ["Convexity", "Butterfly Arbitrage", "Calendar Arbitrage", "Pricing Bounds"],
+    title: "Option Chain Arbitrage",
+    algorithms: ["Vertical Arbitrage", "Butterfly Arbitrage", "Calendar Arbitrage", "Pricing Bounds"],
     infoSlug: "option-chain-analysis",
   },
 ];
 
 const ACTIVITY_PHRASES: Record<ScannerId, string[]> = {
-  core: ["Checking expiry...", "Loading contracts...", "Computing parity..."],
+  putcall: ["Checking expiry...", "Comparing spot vs synthetic...", "Evaluating conversions..."],
   box: ["Checking expiry...", "Building box spreads...", "Evaluating spreads..."],
-  synthetic: ["Checking expiry...", "Comparing spot vs synthetic...", "Evaluating conversions..."],
-  chain: ["Checking convexity...", "Scanning butterflies...", "Checking calendar spreads...", "Checking pricing bounds..."],
+  chain: ["Checking vertical spreads...", "Scanning butterflies...", "Checking calendar spreads...", "Checking pricing bounds..."],
 };
 
 // The backend cycle itself is sub-second (a batch compute over a few

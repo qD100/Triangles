@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 export type OptionsOpportunity = {
   type: "opportunity";
   id: string;
-  scanner: "core" | "box" | "synthetic" | "chain";
+  scanner: "putcall" | "box" | "chain";
   algorithm: string;
   underlying: string;
   strikes: number[];
@@ -32,7 +32,7 @@ export type MarketPanelData = {
   last_update: string;
 };
 
-export type ScannerId = "core" | "box" | "synthetic" | "chain";
+export type ScannerId = "putcall" | "box" | "chain";
 
 export type ScannerStatus = {
   status: "scanning" | "opportunity" | "no_opportunity";
@@ -53,6 +53,41 @@ export type OptionsSettings = {
   min_profit_usd: number;
 };
 
+export type PaperTradeResult = {
+  opportunity_id: string;
+  scanner: ScannerId;
+  algorithm: string;
+  underlying: string;
+  entry_edge: number;
+  realized_profit: number;
+  outcome: "held_up" | "still_profitable" | "vanished";
+  settled_at: string;
+};
+
+export type PaperTradingStats = {
+  attempted: number;
+  held_up: number;
+  still_profitable: number;
+  vanished: number;
+  fill_rate_percent: number | null;
+  total_theoretical_profit: number;
+  total_realized_profit: number;
+  pending: number;
+  recent: PaperTradeResult[];
+};
+
+const EMPTY_PAPER_TRADING: PaperTradingStats = {
+  attempted: 0,
+  held_up: 0,
+  still_profitable: 0,
+  vanished: 0,
+  fill_rate_percent: null,
+  total_theoretical_profit: 0,
+  total_realized_profit: 0,
+  pending: 0,
+  recent: [],
+};
+
 // Retained server-side too (same cap) — how much history a fresh
 // connection catches up on, not just how much we render.
 const MAX_EVENTS = 300;
@@ -65,6 +100,7 @@ type IncomingMessage =
       market: Record<string, MarketPanelData>;
       scanners: Record<ScannerId, ScannerStatus>;
       performance: PerformanceStats;
+      paper_trading?: PaperTradingStats;
     }
   | {
       type: "settings";
@@ -78,6 +114,7 @@ type IncomingMessage =
       market: Record<string, MarketPanelData>;
       scanners: Record<ScannerId, ScannerStatus>;
       settings: OptionsSettings;
+      paper_trading?: PaperTradingStats;
     };
 
 export default function useOptionsScanner() {
@@ -89,6 +126,7 @@ export default function useOptionsScanner() {
   const [performanceStats, setPerformanceStats] = useState<PerformanceStats | null>(null);
   const [opportunities, setOpportunities] = useState<OptionsOpportunity[]>([]);
   const [settings, setSettings] = useState<OptionsSettings>({ fee_percent: 0.05, min_profit_usd: 5 });
+  const [paperTrading, setPaperTrading] = useState<PaperTradingStats>(EMPTY_PAPER_TRADING);
 
   // Origin for the uptime clock — the backend's own start time, not this
   // page's mount time, so a refresh shows the engine's true uptime instead
@@ -134,6 +172,7 @@ export default function useOptionsScanner() {
         setMarket(data.market ?? {});
         setScanners(data.scanners ?? {});
         if (data.settings) setSettings(data.settings);
+        if (data.paper_trading) setPaperTrading(data.paper_trading);
         return;
       }
 
@@ -146,6 +185,7 @@ export default function useOptionsScanner() {
         if (data.market) setMarket(data.market);
         if (data.scanners) setScanners(data.scanners);
         if (data.performance) setPerformanceStats(data.performance);
+        if (data.paper_trading) setPaperTrading(data.paper_trading);
         return;
       }
 
@@ -185,6 +225,7 @@ export default function useOptionsScanner() {
     performanceStats,
     opportunities,
     settings,
+    paperTrading,
     serverStartedAt,
     updateSettings,
   };

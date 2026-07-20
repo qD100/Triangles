@@ -7,9 +7,17 @@ type Props = {
   settings: OptionsSettings;
   onUpdate: (next: OptionsSettings) => void;
   onClose: () => void;
+  highConfidenceOnly: boolean;
+  onHighConfidenceOnlyChange: (value: boolean) => void;
 };
 
-export default function OptionsSettingsPanel({ settings, onUpdate, onClose }: Props) {
+export default function OptionsSettingsPanel({
+  settings,
+  onUpdate,
+  onClose,
+  highConfidenceOnly,
+  onHighConfidenceOnlyChange,
+}: Props) {
   const [feePercent, setFeePercent] = useState(String(settings.fee_percent));
   const [minProfitUsd, setMinProfitUsd] = useState(String(settings.min_profit_usd));
 
@@ -28,7 +36,7 @@ export default function OptionsSettingsPanel({ settings, onUpdate, onClose }: Pr
       <div className="text-sm font-bold uppercase tracking-wide text-white">Scanner Settings</div>
 
       <p className="mt-1 text-xs text-zinc-500">
-        Applied live to all four options engines over their websocket connection.
+        Applied live to all three options engines over their websocket connection.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -56,6 +64,25 @@ export default function OptionsSettingsPanel({ settings, onUpdate, onClose }: Pr
             onChange={(event) => setMinProfitUsd(event.target.value)}
             className="mt-1 w-full rounded-lg border border-zinc-700 bg-[#111111] px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
           />
+        </label>
+      </div>
+
+      <div className="mt-4 border-t border-zinc-800 pt-3">
+        <label className="flex cursor-pointer items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={highConfidenceOnly}
+            onChange={(event) => onHighConfidenceOnlyChange(event.target.checked)}
+            className="mt-0.5 h-4 w-4 shrink-0 rounded border-zinc-600 bg-[#111111] accent-blue-500"
+          />
+          <span>
+            <span className="block text-xs font-semibold text-white">High confidence only</span>
+            <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">
+              Hide opportunities priced off a contract with no confirmed real
+              bid/ask (medium/low confidence) — filters the feed instantly,
+              doesn&apos;t change what the scanners detect.
+            </span>
+          </span>
         </label>
       </div>
 

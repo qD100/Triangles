@@ -7,6 +7,7 @@ import type { OptionsOpportunity } from "@/app/components/hooks/useOptionsScanne
 
 type Props = {
   opportunities: OptionsOpportunity[];
+  highConfidenceOnly?: boolean;
 };
 
 const CONFIDENCE_COLOR: Record<OptionsOpportunity["confidence"], string> = {
@@ -15,14 +16,21 @@ const CONFIDENCE_COLOR: Record<OptionsOpportunity["confidence"], string> = {
   low: "text-zinc-500",
 };
 
-export default function OptionsFeed({ opportunities }: Props) {
+export default function OptionsFeed({ opportunities, highConfidenceOnly = false }: Props) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   return (
     <section className="flex h-[520px] flex-col overflow-hidden rounded-xl border border-zinc-800 bg-[#111111] shadow-2xl shadow-black/40 sm:h-[640px] lg:h-[820px]">
       <div className="border-b border-zinc-800 p-5">
-        <h2 className="text-xl font-bold tracking-wide text-emerald-400">DETECTED OPPORTUNITIES</h2>
-        <p className="mt-1 text-sm text-zinc-500">Live feed across all four scanners</p>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xl font-bold tracking-wide text-emerald-400">DETECTED OPPORTUNITIES</h2>
+          {highConfidenceOnly && (
+            <span className="shrink-0 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold tracking-wider text-emerald-400 uppercase">
+              High confidence only
+            </span>
+          )}
+        </div>
+        <p className="mt-1 text-sm text-zinc-500">Live feed across all three scanners</p>
       </div>
 
       {opportunities.length > 0 && (
@@ -35,7 +43,7 @@ export default function OptionsFeed({ opportunities }: Props) {
 
       <div className="flex flex-1 flex-col overflow-y-auto px-2 pb-2">
         {opportunities.length === 0 ? (
-          <EmptyFeed />
+          <EmptyFeed highConfidenceOnly={highConfidenceOnly} />
         ) : (
           <AnimatePresence initial={false}>
             {opportunities.map((opp) => (
@@ -53,13 +61,15 @@ export default function OptionsFeed({ opportunities }: Props) {
   );
 }
 
-function EmptyFeed() {
+function EmptyFeed({ highConfidenceOnly }: { highConfidenceOnly: boolean }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center text-center">
       <RadarLoader />
       <div className="text-xl font-semibold text-white">Waiting for opportunities...</div>
-      <div className="mt-2 text-sm text-zinc-500">
-        All four engines are scanning live Binance options data.
+      <div className="mt-2 max-w-xs text-sm text-zinc-500">
+        {highConfidenceOnly
+          ? "No high-confidence (confirmed real bid/ask) opportunities right now — lower-confidence ones are being hidden."
+          : "All three engines are scanning live Binance options data."}
       </div>
     </div>
   );

@@ -152,6 +152,7 @@ async def options_websocket(websocket: WebSocket):
         "market": dict(options.market_state),
         "scanners": {k: dict(v) for k, v in options.scanner_status.items()},
         "settings": options.settings,
+        "paper_trading": options.paper_trading_snapshot(),
     })
 
     try:
