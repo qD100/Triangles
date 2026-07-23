@@ -16,6 +16,8 @@ import MeanReversionChart from "./MeanReversionChart";
 import RecentSignalsFeed, { type SignalFeedItem } from "./RecentSignalsFeed";
 import HistoricalSignalsLog from "./HistoricalSignalsLog";
 import { formatPercent, formatPrice, formatNumber, formatDays } from "./format";
+import { InfoTooltip, TooltipProvider } from "./InfoTooltip";
+import { STAT_TOOLTIPS, CHART_TOOLTIPS, HEADER_TOOLTIPS, type TooltipContent } from "./tooltip-content";
 
 type EtfRow = EtfScannerResult["rows"][number];
 
@@ -101,27 +103,31 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
 
   const stats: StatItem[] = selectedRow
     ? [
-        { label: "Current Premium", value: `${selectedRow.currentTrackingPremium?.toFixed(2) ?? "—"} pts` },
-        { label: "Average Premium", value: `${selectedRow.historicalMeanPremium.toFixed(2)} pts` },
+        { label: "Current Premium", value: `${selectedRow.currentTrackingPremium?.toFixed(2) ?? "—"} pts`, info: STAT_TOOLTIPS.currentPremium },
+        { label: "Average Premium", value: `${selectedRow.historicalMeanPremium.toFixed(2)} pts`, info: STAT_TOOLTIPS.averagePremium },
         {
           label: "Volatility (σ)",
           value: selectedRow.historicalStdPremium.toFixed(2),
+          info: STAT_TOOLTIPS.volatility,
         },
-        { label: "Half-life", value: formatDays(selectedRow.halfLifeDays) },
+        { label: "Half-life", value: formatDays(selectedRow.halfLifeDays), info: HEADER_TOOLTIPS.halfLife },
         {
           label: "Opportunity Score",
           value: String(selectedRow.opportunityScore),
           tone: selectedRow.opportunityScore >= 60 ? "positive" : "neutral",
+          info: STAT_TOOLTIPS.opportunityScore,
         },
         {
           label: "Signal Confidence",
           value: `${(selectedRow.signalConfidence * 100).toFixed(0)}%`,
+          info: STAT_TOOLTIPS.signalConfidence,
         },
-        { label: "Days Above 2σ", value: String(selectedRow.daysAbove2Sigma) },
-        { label: "Days Below -2σ", value: String(selectedRow.daysBelow2Sigma) },
+        { label: "Days Above 2σ", value: String(selectedRow.daysAbove2Sigma), info: STAT_TOOLTIPS.daysAbove2Sigma },
+        { label: "Days Below -2σ", value: String(selectedRow.daysBelow2Sigma), info: STAT_TOOLTIPS.daysBelow2Sigma },
         {
           label: "Fair Value",
           value: selectedRow.fairValue !== null ? formatPrice(selectedRow.fairValue, selectedRow.currency) : "—",
+          info: STAT_TOOLTIPS.fairValue,
         },
         {
           label: "Deviation",
@@ -132,18 +138,24 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
               : selectedRow.deviationFromFairValuePct > 0
                 ? "positive"
                 : "negative",
+          info: STAT_TOOLTIPS.deviation,
         },
       ]
     : [];
 
   const heatmapRows = data.rows.map((r) => ({
     label: r.symbol,
-    cells: r.weeklyHeatmap.map((w) => ({ label: w.weekLabel.split("-W")[1] ?? w.weekLabel, value: w.value })),
+    cells: r.weeklyHeatmap.map((w) => ({
+      label: w.weekLabel.split("-W")[1] ?? w.weekLabel,
+      weekLabel: w.weekLabel,
+      value: w.value,
+    })),
   }));
   const heatmapScale =
     Math.max(1, ...data.rows.map((r) => r.historicalStdPremium * 2.5)) || 1;
 
   return (
+    <TooltipProvider delay={200}>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -188,7 +200,7 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
           <StatisticsPanel items={stats} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <ChartCard title="Premium / Discount Time Series">
+            <ChartCard title="Premium / Discount Time Series" info={CHART_TOOLTIPS.premiumTimeSeries}>
               <SpreadChart
                 data={selectedRow.series}
                 dataKey="premium"
@@ -196,19 +208,19 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
                 mean={selectedRow.historicalMeanPremium}
               />
             </ChartCard>
-            <ChartCard title="Rolling Z-Score (20/50/100)">
+            <ChartCard title="Rolling Z-Score (20/50/100)" info={CHART_TOOLTIPS.rollingZScore}>
               <ZScoreChart data={selectedRow.series} dataKey="zScore20" label="Z-score (20d)" />
             </ChartCard>
-            <ChartCard title="Deviation Histogram & Distribution Curve">
+            <ChartCard title="Deviation Histogram & Distribution Curve" info={CHART_TOOLTIPS.deviationHistogram}>
               <HistogramChart bins={selectedRow.histogramBins} curve={selectedRow.distributionCurve} />
             </ChartCard>
-            <ChartCard title="Mean Reversion Projection">
+            <ChartCard title="Mean Reversion Projection" info={CHART_TOOLTIPS.meanReversionProjection}>
               <MeanReversionChart
                 data={selectedRow.meanReversionForecast}
                 targetValue={selectedRow.historicalMeanPremium}
               />
             </ChartCard>
-            <ChartCard title="Normalized Price Comparison (context)">
+            <ChartCard title="Normalized Price Comparison (context)" info={CHART_TOOLTIPS.normalizedPriceComparison}>
               <PremiumChart
                 data={selectedRow.series.map((p) => ({
                   date: p.date,
@@ -219,7 +231,7 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
                 labelB={selectedRow.benchmarkName}
               />
             </ChartCard>
-            <ChartCard title="Premium Heatmap (weekly avg, all ETFs)">
+            <ChartCard title="Premium Heatmap (weekly avg, all ETFs)" info={CHART_TOOLTIPS.premiumHeatmap}>
               <HeatmapGrid rows={heatmapRows} scale={heatmapScale} />
             </ChartCard>
           </div>
@@ -241,14 +253,30 @@ export default function ETFScanner({ initialData }: { initialData: EtfScannerRes
         </div>
       )}
     </div>
+    </TooltipProvider>
   );
 }
 
-function ChartCard({ title, children }: { title: string; children: React.ReactNode }) {
+function ChartCard({
+  title,
+  info,
+  children,
+}: {
+  title: string;
+  info?: TooltipContent;
+  children: React.ReactNode;
+}) {
   return (
     <div className="rounded-md border border-zinc-800 bg-[#111111] p-3">
-      <h4 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-        {title}
+      <h4 className="mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+        <span>{title}</span>
+        {info && (
+          <InfoTooltip content={info}>
+            <span className="flex h-3.5 w-3.5 items-center justify-center rounded-full text-[10px] leading-none normal-case tracking-normal text-zinc-600 hover:text-zinc-300">
+              ⓘ
+            </span>
+          </InfoTooltip>
+        )}
       </h4>
       {children}
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { GearIcon, ExpandIcon, CollapseIcon, TriangleLogoIcon } from "./icons";
 import SettingsPanel from "./SettingsPanel";
@@ -77,13 +78,19 @@ export default function Header({
         <div className="flex items-center gap-2 sm:gap-3">
           <ArbitrageLauncher />
 
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 sm:h-10 sm:w-10">
-            <TriangleLogoIcon className="h-4 w-4 sm:h-5 sm:w-5" />
-          </div>
+          <Link
+            href="/"
+            className="flex items-center gap-2 sm:gap-3"
+            title="Back to homepage"
+          >
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/20 text-blue-400 transition-colors hover:bg-blue-500/30 sm:h-10 sm:w-10">
+              <TriangleLogoIcon className="h-4 w-4 sm:h-5 sm:w-5" />
+            </div>
 
-          <h1 className="whitespace-nowrap text-sm font-bold tracking-wide text-white sm:text-xl">
-            Triangle Terminal
-          </h1>
+            <h1 className="whitespace-nowrap text-sm font-bold tracking-wide text-white sm:text-xl">
+              Triangle Terminal
+            </h1>
+          </Link>
 
           <div className="ml-0.5 flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 sm:ml-1 sm:gap-1.5 sm:px-2.5 sm:py-1">
             <span

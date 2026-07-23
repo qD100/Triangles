@@ -21,7 +21,7 @@ export type ArbitrageTool = {
 // always Bitcoin. Written by the coin page itself on every symbol change.
 export const LAST_SPOTFUTURES_SYMBOL_KEY = "spotfutures:lastSymbol";
 
-function resolveSpotFuturesRoute() {
+export function resolveSpotFuturesRoute() {
   if (typeof window === "undefined") return "/coin/btc";
 
   try {
@@ -40,7 +40,7 @@ export const ARBITRAGE_TOOLS: ArbitrageTool[] = [
     title: "Triangular Arbitrage",
     description: "Cross-market pricing errors",
     icon: TriangleLogoIcon,
-    route: "/",
+    route: "/triangular-arbitrage",
   },
   {
     id: "spot-futures",

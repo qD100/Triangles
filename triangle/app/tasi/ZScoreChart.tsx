@@ -27,10 +27,18 @@ export default function ZScoreChart<T extends { date: string }>({
       <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
         <CartesianGrid stroke={GRIDLINE} strokeDasharray="0" vertical={false} />
         <XAxis dataKey="date" tick={{ fill: TEXT_MUTED, fontSize: 10 }} minTickGap={40} axisLine={{ stroke: GRIDLINE }} tickLine={false} />
-        <YAxis domain={[-3.5, 3.5]} tick={{ fill: TEXT_MUTED, fontSize: 10 }} axisLine={{ stroke: GRIDLINE }} tickLine={false} width={36} />
+        <YAxis
+          domain={[-3.5, 3.5]}
+          tick={{ fill: TEXT_MUTED, fontSize: 10 }}
+          axisLine={{ stroke: GRIDLINE }}
+          tickLine={false}
+          width={36}
+          tickFormatter={(value: number) => value.toFixed(3)}
+        />
         <Tooltip
           contentStyle={{ background: SURFACE, border: `1px solid ${BORDER}`, fontSize: 11 }}
           labelStyle={{ color: TEXT_MUTED }}
+          formatter={(value, name) => [typeof value === "number" ? value.toFixed(3) : value, name]}
         />
         {/* recessive background bands: ±1σ / ±2σ / ±3σ, increasing shade outward */}
         <ReferenceArea y1={-1} y2={1} fill={TEXT_MUTED} fillOpacity={0.06} strokeWidth={0} />

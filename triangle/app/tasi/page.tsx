@@ -9,7 +9,16 @@ import ETFScanner from "./ETFScanner";
 import PairScanner from "./PairScanner";
 import AnalyticsRankings from "./AnalyticsRankings";
 
-export default async function TasiPage() {
+const TAB_KEYS = ["overview", "etf", "pairs", "analytics"] as const;
+
+export default async function TasiPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const { tab } = await searchParams;
+  const defaultTab = (TAB_KEYS as readonly string[]).includes(tab ?? "") ? tab! : "overview";
+
   const [etfSettled, pairsSettled] = await Promise.allSettled([
     getEtfScannerData(),
     getPairsScannerData(),
@@ -53,7 +62,7 @@ export default async function TasiPage() {
           </div>
         ) : (
           <Tabs
-            defaultTab="overview"
+            defaultTab={defaultTab}
             tabs={[
               { key: "overview", label: "Overview", content: <OverviewPanel etfData={etfData} pairsData={pairsData} /> },
               { key: "etf", label: "ETF Arbitrage", content: <ETFScanner initialData={etfData} /> },

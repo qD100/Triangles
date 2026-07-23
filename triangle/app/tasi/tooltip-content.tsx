@@ -145,6 +145,126 @@ export const HEADER_TOOLTIPS: Record<string, TooltipContent> = {
   },
 };
 
+// --- Stat box tooltips (ETF vs Index Arbitrage Scanner) ---
+export const STAT_TOOLTIPS: Record<string, TooltipContent> = {
+  currentPremium: {
+    title: "Current Premium",
+    paragraphs: ["The ETF's live price minus its indicative NAV (fair value), in price points."],
+    groups: [
+      {
+        items: [
+          { label: "Positive", description: "ETF trading above NAV — richly priced.", tone: "warn" },
+          { label: "Negative", description: "ETF trading below NAV — at a discount.", tone: "ok" },
+          { label: "Near 0", description: "Fairly priced relative to NAV.", tone: "neutral" },
+        ],
+      },
+    ],
+    note: "Extreme values relative to this ETF's own history are what the scanner flags as opportunities.",
+  },
+  averagePremium: {
+    title: "Average Premium",
+    paragraphs: [
+      "The historical mean tracking premium over the lookback window — this ETF's own 'normal' baseline.",
+      "Some ETFs persistently trade slightly rich or cheap; the current premium is compared against this, not necessarily zero.",
+    ],
+  },
+  volatility: {
+    title: "Volatility (σ)",
+    paragraphs: ["The standard deviation of the premium series — how much it typically swings day to day."],
+    groups: [
+      {
+        items: [
+          { label: "Low", description: "Stable tracking — signals are more trustworthy.", tone: "good" },
+          { label: "High", description: "Noisy series — z-score crossings may be less meaningful.", tone: "bad" },
+        ],
+      },
+    ],
+  },
+  opportunityScore: {
+    title: "Opportunity Score",
+    paragraphs: ["A custom 0–100 score ranking how attractive this ETF's current mispricing is."],
+    bullets: ["Z-score magnitude", "Signal confidence", "Speed of expected mean reversion"],
+    note: "Higher scores indicate a stronger, more statistically confident setup.",
+  },
+  signalConfidence: {
+    title: "Signal Confidence",
+    paragraphs: ["An estimate of how reliable the current signal is, based on the consistency of the underlying statistics."],
+    groups: [
+      {
+        items: [
+          { label: "High %", description: "Strong statistical basis for the signal.", tone: "good" },
+          { label: "Low %", description: "Treat the signal with caution — could be noise.", tone: "bad" },
+        ],
+      },
+    ],
+  },
+  daysAbove2Sigma: {
+    title: "Days Above 2σ",
+    paragraphs: ["Number of days in the lookback window the premium spent above +2 standard deviations (persistently rich)."],
+    note: "A high count can mean this ETF frequently overshoots — consider whether ±2σ is a well-calibrated threshold for it specifically.",
+  },
+  daysBelow2Sigma: {
+    title: "Days Below -2σ",
+    paragraphs: ["Number of days in the lookback window the premium spent below -2 standard deviations (persistently cheap)."],
+    note: "Mirrors 'Days Above 2σ' for the discount side.",
+  },
+  fairValue: {
+    title: "Fair Value",
+    paragraphs: ["The modeled price this ETF 'should' trade at if its premium reverted to its historical average."],
+    note: "Used as the reference point for Deviation.",
+  },
+  deviation: {
+    title: "Deviation",
+    paragraphs: ["How far the current price is from Fair Value, as a percentage."],
+    groups: [
+      {
+        items: [
+          { label: "Positive", description: "Trading above fair value — rich.", tone: "warn" },
+          { label: "Negative", description: "Trading below fair value — cheap.", tone: "ok" },
+        ],
+      },
+    ],
+  },
+};
+
+// --- Chart card tooltips (ETF vs Index Arbitrage Scanner) ---
+export const CHART_TOOLTIPS: Record<string, TooltipContent> = {
+  premiumTimeSeries: {
+    title: "Premium / Discount Time Series",
+    paragraphs: ["The day-by-day tracking premium, with the historical average overlaid as a dashed reference line."],
+    note: "Look for the current value sitting unusually far from the dashed mean — that's the visual version of a high z-score.",
+  },
+  rollingZScore: {
+    title: "Rolling Z-Score (20/50/100)",
+    paragraphs: [
+      "The premium expressed in standard-deviation units across three rolling windows, so short-term and longer-term dislocation can be compared.",
+    ],
+    note: "Entries/exits are typically judged against the ±2σ (opportunity) and ±3σ (extreme) bands.",
+  },
+  deviationHistogram: {
+    title: "Deviation Histogram & Distribution Curve",
+    paragraphs: ["The historical distribution of the premium's deviations, with a fitted normal curve overlaid."],
+    note: "A current reading in the tails (edges) of this distribution is genuinely rare; one near the center is closer to typical noise.",
+  },
+  meanReversionProjection: {
+    title: "Mean Reversion Projection",
+    paragraphs: [
+      "A modeled forecast of how the premium is expected to decay back toward its historical mean, based on the estimated half-life.",
+    ],
+    note: "A steeper curve implies a shorter expected holding period for the trade to play out.",
+  },
+  normalizedPriceComparison: {
+    title: "Normalized Price Comparison",
+    paragraphs: ["The ETF and its benchmark index, both indexed to a common starting value of 100."],
+    note: "A sanity check independent of the premium math — the two lines should broadly track together; sustained separation is tracking error.",
+  },
+  premiumHeatmap: {
+    title: "Premium Heatmap (weekly avg, all ETFs)",
+    paragraphs: ["Every tracked ETF's weekly average premium side by side, colored by magnitude."],
+    note: "Useful for spotting whether a mispricing is isolated to one ETF or part of a broader, market-wide pattern.",
+  },
+};
+
 // --- Signal badge tooltips — shared between ETF and Pairs signals ---
 export const SIGNAL_TOOLTIPS: Record<string, TooltipContent> = {
   ENTRY_LONG: {

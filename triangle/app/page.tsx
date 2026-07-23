@@ -1,51 +1,36 @@
-"use client";
+import { Inter } from "next/font/google";
+import Navbar from "./components/home/Navbar";
+import Hero from "./components/home/Hero";
+import ScannerGrid from "./components/home/ScannerGrid";
+import LiveFeed from "./components/home/LiveFeed";
+import MarketCards from "./components/home/MarketCards";
+import TopOpportunity from "./components/home/TopOpportunity";
+import HomeStatusBar from "./components/home/HomeStatusBar";
+import SpotlightBackground from "./components/home/SpotlightBackground";
 
-import Header from "./components/Header";
-import MarketTable from "./components/Market/MarketTable";
-import RouteAnimation from "./components/Route/RouteAnimation";
-import ScannerFeed from "./components/Scanner/ScannerFeed";
-import StatusBar from "./components/StatusBar";
-import useTerminal from "./components/hooks/useTerminal";
+const inter = Inter({ subsets: ["latin"], weight: ["400", "500", "600", "700", "800"] });
 
 export default function Home() {
-  const terminal = useTerminal();
-
   return (
-    <>
-      <Header
-        connected={terminal.connected}
-        opportunitiesPerMin={terminal.opportunitiesPerMin}
-        bestProfit={terminal.statistics.bestProfit}
-        lastUpdate={terminal.lastUpdate}
-        settings={terminal.settings}
-        onUpdateSettings={terminal.updateSettings}
-      />
+    <div className={`${inter.className} flex min-h-screen flex-col`}>
+      <SpotlightBackground />
 
-      <main className="mx-auto grid w-full max-w-[1800px] flex-1 grid-cols-1 gap-3 p-3 sm:gap-4 sm:p-4 lg:grid-cols-[1fr_1fr_1.15fr] lg:gap-6 lg:p-6">
+      <div className="relative z-10 flex min-h-screen flex-col">
+        <Navbar />
 
-        <MarketTable
-          coins={terminal.coins}
-          flashStates={terminal.flashStates}
-          glowStates={terminal.glowStates}
-          temporaryCoin={terminal.temporaryCoin}
-        />
+        <main className="flex-1">
+          <Hero />
+          <ScannerGrid />
 
-        <RouteAnimation
-          data={terminal.currentRoute}
-          scanStatus={terminal.scanStatus}
-        />
+          <section className="mx-auto grid max-w-[1600px] grid-cols-1 gap-4 px-4 pb-10 sm:px-6 lg:grid-cols-[1.3fr_1fr_0.9fr] lg:px-10">
+            <LiveFeed />
+            <MarketCards />
+            <TopOpportunity />
+          </section>
+        </main>
 
-        <ScannerFeed events={terminal.scannerEvents} />
-
-      </main>
-
-      <StatusBar
-        connected={terminal.connected}
-        latency={terminal.statistics.latency}
-        scanStatus={terminal.scanStatus}
-        settings={terminal.settings}
-        uptime={terminal.uptime}
-      />
-    </>
+        <HomeStatusBar />
+      </div>
+    </div>
   );
 }

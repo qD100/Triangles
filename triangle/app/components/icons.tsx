@@ -118,6 +118,23 @@ export function OptionsIcon({ className = "h-4 w-4" }: IconProps) {
   );
 }
 
+export function SwapIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 8h13m0 0-3.5-3.5M17 8l-3.5 3.5" />
+      <path strokeLinecap="round" strokeLinejoin="round" d="M20 16H7m0 0 3.5-3.5M7 16l3.5 3.5" />
+    </svg>
+  );
+}
+
+export function BarsIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className={className}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M5 19V13M12 19V7M19 19v-5" />
+    </svg>
+  );
+}
+
 // An angular flag/pennant mark — a geometric homage to Tadawul's abstract
 // visual identity (asymmetric notch + pointed tail), not a traced copy of
 // their registered logo. Solid currentColor fill so it inherits whatever
