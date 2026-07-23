@@ -37,8 +37,15 @@ export default function useMarketData(initialCoins: Coin[]) {
       setTimeout(connect, 3000);
     };
 
-    wsRef.current.onerror = (err) => {
-      console.error(err);
+    wsRef.current.onerror = () => {
+      // WebSocket error events carry no diagnostic detail by design (browsers
+      // withhold network error specifics from JS), so logging the bare event
+      // just prints "{}" and trips Next.js's dev-mode console.error overlay.
+      // The spec guarantees a `close` event follows every connection error,
+      // and `onclose` below already reconnects after 3s — so this only warns.
+      console.warn(
+        `Binance WebSocket error (readyState=${wsRef.current?.readyState ?? "unknown"}); reconnecting on close.`
+      );
     };
 
     wsRef.current.onmessage = (event) => {
