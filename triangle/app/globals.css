@@ -187,3 +187,12 @@ body{
     0%, 78%, 100% { fill-opacity: 0; stroke-opacity: 0; }
     90% { fill-opacity: 0.14; stroke-opacity: 0.28; }
 }
+
+/* Used by /tasi's scanner table to flash rows on refresh. Additive only. */
+@keyframes row-flash {
+    from { background-color: rgba(59, 130, 246, 0.18); }
+    to { background-color: transparent; }
+}
+.row-flash {
+    animation: row-flash 900ms ease-out;
+}

@@ -117,3 +117,15 @@ export function OptionsIcon({ className = "h-4 w-4" }: IconProps) {
     </svg>
   );
 }
+
+// An angular flag/pennant mark — a geometric homage to Tadawul's abstract
+// visual identity (asymmetric notch + pointed tail), not a traced copy of
+// their registered logo. Solid currentColor fill so it inherits whatever
+// tile color wraps it, same as TriangleLogoIcon.
+export function TasiMarkIcon({ className = "h-4 w-4" }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
+      <path d="M11 5h8v8l-8 8v-8H3z" />
+    </svg>
+  );
+}

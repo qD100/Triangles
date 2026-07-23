@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { GridIcon, TriangleLogoIcon, TargetIcon, OptionsIcon } from "./icons";
+import { GridIcon, TriangleLogoIcon, TargetIcon, OptionsIcon, TasiMarkIcon } from "./icons";
 
 export type ArbitrageTool = {
   id: string;
@@ -55,6 +55,13 @@ export const ARBITRAGE_TOOLS: ArbitrageTool[] = [
     description: "Option pricing inefficiencies",
     icon: OptionsIcon,
     route: "/options-arbitrage",
+  },
+  {
+    id: "tasi",
+    title: "TASI Scanner",
+    description: "Saudi ETF & pairs arbitrage",
+    icon: TasiMarkIcon,
+    route: "/tasi",
   },
 ];
 
