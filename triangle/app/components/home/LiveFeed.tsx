@@ -16,12 +16,12 @@ type FeedRow = {
 
 const TEMPLATES: Omit<FeedRow, "id" | "time">[] = [
   { scannerLabel: "Triangular Arbitrage", accent: "green", instrument: "BTC → ETH → SOL → BTC", right: { kind: "profit", value: "+0.42%" } },
-  { scannerLabel: "Pairs Trading", accent: "blue", instrument: "1120 / 1080", right: { kind: "signal", label: "Entry Long", score: 91 } },
+  { scannerLabel: "Pairs Trading", accent: "blue", instrument: "1120 / 1080", right: { kind: "signal", label: "Diverged Below Mean", score: 91 } },
   { scannerLabel: "Spot-Future Arbitrage", accent: "purple", instrument: "ETH/USDT Perp", right: { kind: "profit", value: "+0.31%" } },
   { scannerLabel: "ETF vs TASI", accent: "teal", instrument: "KSA30 ETF vs TASI Index", right: { kind: "profit", value: "+0.27%" } },
   { scannerLabel: "Options Arbitrage", accent: "orange", instrument: "Box Spread (BTC)", right: { kind: "profit", value: "+0.18%" } },
   { scannerLabel: "Triangular Arbitrage", accent: "green", instrument: "USDT → BNB → ETH → USDT", right: { kind: "profit", value: "+0.24%" } },
-  { scannerLabel: "Pairs Trading", accent: "blue", instrument: "2222 / 1180", right: { kind: "signal", label: "Entry Short", score: 84 } },
+  { scannerLabel: "Pairs Trading", accent: "blue", instrument: "2222 / 1180", right: { kind: "signal", label: "Diverged Above Mean", score: 84 } },
 ];
 
 function timeNow() {

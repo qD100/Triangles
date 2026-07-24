@@ -65,39 +65,8 @@ function RichTooltipBody({ content }: { content: TooltipContentData }) {
         </ul>
       )}
 
-      {content.actions && (
-        <ul className="space-y-1 border-t border-zinc-800 pt-2">
-          {content.actions.map((a, i) => (
-            <li key={i} className={`flex items-center gap-1.5 text-xs font-medium ${TONE_TEXT[a.tone]}`}>
-              <span>✔</span>
-              <span>{a.text}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {content.example && (
-        <div className="rounded-md border border-zinc-800 bg-[#181818] px-2.5 py-2 text-xs">
-          <div className="text-[10px] uppercase tracking-wide text-zinc-500">Example</div>
-          <div className="mt-1 font-mono font-medium text-white">Pair: {content.example.pair}</div>
-          <div className="mt-1 space-y-0.5 font-mono text-zinc-300">
-            <div className="text-[10px] uppercase tracking-wide text-zinc-500">Action</div>
-            {content.example.actions.map((a, i) => (
-              <div key={i}>{a}</div>
-            ))}
-          </div>
-        </div>
-      )}
-
       {content.note && (
         <p className="border-t border-zinc-800 pt-2 text-xs text-zinc-500 italic">{content.note}</p>
-      )}
-
-      {content.exitNote && (
-        <p className="text-xs text-zinc-500">
-          <span className="font-semibold text-zinc-400">Exit: </span>
-          {content.exitNote}
-        </p>
       )}
     </div>
   );

@@ -16,10 +16,7 @@ export interface TooltipContent {
   paragraphs?: string[];
   groups?: GuideGroup[];
   bullets?: string[];
-  actions?: { text: string; tone: Tone }[];
-  example?: { pair: string; actions: string[] };
   note?: string;
-  exitNote?: string;
 }
 
 // --- Column header tooltips (Pairs Trading Scanner) ---
@@ -74,7 +71,7 @@ export const HEADER_TOOLTIPS: Record<string, TooltipContent> = {
         ],
       },
     ],
-    note: "Only cointegrated pairs should generally be traded.",
+    note: "Pairs without cointegration carry a higher risk that the spread will not revert to its historical relationship.",
   },
   currentSpread: {
     title: "Current Spread",
@@ -87,7 +84,7 @@ export const HEADER_TOOLTIPS: Record<string, TooltipContent> = {
         ],
       },
     ],
-    note: "Large spreads may present trading opportunities.",
+    note: "Large spreads indicate elevated divergence risk relative to the pair's historical relationship.",
   },
   zScore: {
     title: "Z-Score",
@@ -98,12 +95,12 @@ export const HEADER_TOOLTIPS: Record<string, TooltipContent> = {
         items: [
           { label: "0", description: "Normal", tone: "neutral" },
           { label: "±1", description: "Small deviation", tone: "ok" },
-          { label: "±2", description: "Trading opportunity", tone: "warn" },
+          { label: "±2", description: "Elevated divergence", tone: "warn" },
           { label: "±3", description: "Extreme divergence", tone: "bad" },
         ],
       },
     ],
-    note: "Higher absolute values indicate stronger mean reversion opportunities.",
+    note: "Higher absolute values indicate a higher statistical probability of mean reversion — but also higher risk if the relationship has broken down.",
   },
   halfLife: {
     title: "Half-Life",
@@ -125,15 +122,15 @@ export const HEADER_TOOLTIPS: Record<string, TooltipContent> = {
   },
   opportunityScore: {
     title: "Opportunity Score",
-    paragraphs: ["A custom score from 0–100 ranking how attractive the pair is."],
+    paragraphs: ["A custom score from 0–100 combining correlation, cointegration strength, divergence magnitude, and reversion speed into a single ranking."],
     bullets: ["Correlation", "Cointegration", "Z-score", "Half-life", "Spread magnitude"],
     note: "Higher scores indicate stronger statistical setups.",
   },
   signal: {
-    title: "Trading Recommendation",
+    title: "Signal",
     paragraphs: [
-      "The scanner's suggested action based on the current statistical conditions.",
-      "Hovering the signal badge shows detailed trade instructions.",
+      "The scanner's classification of the pair's current statistical state.",
+      "Hovering the signal badge shows the underlying divergence/convergence risk detail.",
     ],
   },
   updated: {
@@ -182,7 +179,7 @@ export const STAT_TOOLTIPS: Record<string, TooltipContent> = {
   },
   opportunityScore: {
     title: "Opportunity Score",
-    paragraphs: ["A custom 0–100 score ranking how attractive this ETF's current mispricing is."],
+    paragraphs: ["A custom 0–100 score combining the ETF's z-score magnitude, signal confidence, and expected reversion speed into a single ranking."],
     bullets: ["Z-score magnitude", "Signal confidence", "Speed of expected mean reversion"],
     note: "Higher scores indicate a stronger, more statistically confident setup.",
   },
@@ -239,7 +236,7 @@ export const CHART_TOOLTIPS: Record<string, TooltipContent> = {
     paragraphs: [
       "The premium expressed in standard-deviation units across three rolling windows, so short-term and longer-term dislocation can be compared.",
     ],
-    note: "Entries/exits are typically judged against the ±2σ (opportunity) and ±3σ (extreme) bands.",
+    note: "Divergence risk is typically assessed against the ±2σ (elevated) and ±3σ (extreme) bands.",
   },
   deviationHistogram: {
     title: "Deviation Histogram & Distribution Curve",
@@ -251,7 +248,7 @@ export const CHART_TOOLTIPS: Record<string, TooltipContent> = {
     paragraphs: [
       "A modeled forecast of how the premium is expected to decay back toward its historical mean, based on the estimated half-life.",
     ],
-    note: "A steeper curve implies a shorter expected holding period for the trade to play out.",
+    note: "A steeper curve implies a shorter expected time for the divergence to fully converge.",
   },
   normalizedPriceComparison: {
     title: "Normalized Price Comparison",
@@ -266,133 +263,99 @@ export const CHART_TOOLTIPS: Record<string, TooltipContent> = {
 };
 
 // --- Signal badge tooltips — shared between ETF and Pairs signals ---
+// Deliberately risk/probability framed, never instructional: no buy/sell,
+// long/short, or "enter/close a position" language anywhere below. Each
+// entry states what the data shows and how that maps to a divergence or
+// convergence probability, not what to do about it.
 export const SIGNAL_TOOLTIPS: Record<string, TooltipContent> = {
   ENTRY_LONG: {
-    title: "Entry Long",
-    paragraphs: ["The spread is significantly below its historical average."],
-    note: "Expected outcome: the spread is likely to rise back toward its mean.",
-    actions: [
-      { text: "BUY the first stock in the pair", tone: "good" },
-      { text: "SELL (short) the second stock", tone: "bad" },
+    title: "Diverged Below Mean",
+    paragraphs: ["The spread has moved significantly below its historical average (beyond ±2σ)."],
+    groups: [
+      {
+        heading: "Risk profile",
+        items: [
+          { label: "•", description: "Deviations at this magnitude have historically preceded convergence back toward the mean — an elevated convergence probability.", tone: "ok" },
+          { label: "•", description: "This holds only while the pair remains cointegrated — if the relationship breaks, the spread may not revert.", tone: "warn" },
+        ],
+      },
     ],
-    example: { pair: "1120 / 1080", actions: ["BUY 1120", "SELL 1080"] },
-    exitNote: "Close both positions when the Z-score returns near 0.",
+    note: "States a statistical condition, not a recommendation — direction (below mean) is a fact about the data, not an instruction.",
   },
   ENTRY_SHORT: {
-    title: "Entry Short",
-    paragraphs: ["The spread is significantly above its historical average."],
-    note: "Expected outcome: the spread is likely to fall back toward its mean.",
-    actions: [
-      { text: "SELL (short) the first stock", tone: "bad" },
-      { text: "BUY the second stock", tone: "good" },
+    title: "Diverged Above Mean",
+    paragraphs: ["The spread has moved significantly above its historical average (beyond ±2σ)."],
+    groups: [
+      {
+        heading: "Risk profile",
+        items: [
+          { label: "•", description: "Deviations at this magnitude have historically preceded convergence back toward the mean — an elevated convergence probability.", tone: "ok" },
+          { label: "•", description: "This holds only while the pair remains cointegrated — if the relationship breaks, the spread may not revert.", tone: "warn" },
+        ],
+      },
     ],
-    example: { pair: "1050 / 2170", actions: ["SELL 1050", "BUY 2170"] },
-    exitNote: "Close both positions when the spread normalizes and the Z-score approaches 0.",
+    note: "States a statistical condition, not a recommendation — direction (above mean) is a fact about the data, not an instruction.",
   },
   EXTREME_DIVERGENCE: {
     title: "Extreme Divergence",
-    paragraphs: ["The pair is extremely far from its historical equilibrium."],
+    paragraphs: ["The pair is extremely far from its historical equilibrium (beyond ±3σ)."],
     bullets: [
-      "A very strong mean-reversion opportunity, or",
-      "A structural break caused by major news or fundamental changes.",
+      "A very high convergence probability, if the statistical relationship still holds, or",
+      "A structural break caused by major news or fundamental changes to either company.",
     ],
     groups: [
       {
-        heading: "Recommendation",
+        heading: "Risk factors",
         items: [
-          { label: "•", description: "Wait for confirmation before entering.", tone: "warn" },
-          { label: "•", description: "Check recent news affecting either company.", tone: "warn" },
-          { label: "•", description: "Use tighter risk management.", tone: "warn" },
+          { label: "•", description: "Extreme deviations carry more uncertainty about whether convergence will occur at all.", tone: "warn" },
+          { label: "•", description: "Worth checking whether recent news affects either company's fundamentals.", tone: "warn" },
         ],
       },
     ],
-    note: "Extreme divergence has the highest potential reward but also the highest risk.",
+    note: "Extreme divergence carries both the highest convergence probability and the highest risk that the relationship has broken.",
   },
   NORMAL: {
-    title: "Neutral",
-    paragraphs: ["No statistical edge currently exists."],
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [
-          { label: "•", description: "Do not open a position.", tone: "neutral" },
-          { label: "•", description: "Continue monitoring until the spread reaches a more favorable level.", tone: "neutral" },
-        ],
-      },
-    ],
+    title: "Normal",
+    paragraphs: ["No statistically significant divergence currently exists."],
+    note: "Divergence risk is low — the spread sits within its typical historical range.",
   },
   WATCH: {
     title: "Watch",
     paragraphs: [
-      "The pair is approaching a statistically significant deviation but hasn't yet reached the entry threshold (±2σ).",
+      "The pair is approaching a statistically significant deviation but hasn't yet crossed the elevated-divergence threshold (±2σ).",
     ],
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [
-          { label: "•", description: "Monitor closely — no position yet.", tone: "warn" },
-          { label: "•", description: "Wait for the Z-score to cross ±2 before considering entry.", tone: "warn" },
-        ],
-      },
-    ],
+    note: "Divergence risk is building but not yet elevated.",
   },
   EXIT: {
-    title: "Exit",
+    title: "Converged",
     paragraphs: ["The spread has reverted back near its historical mean (within ±0.5σ)."],
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [
-          { label: "•", description: "If you hold an open position on this pair, consider closing it to lock in the mean-reversion profit.", tone: "ok" },
-        ],
-      },
-    ],
+    note: "Divergence risk is currently low — the relationship has normalized.",
   },
   COINTEGRATION_BROKEN: {
     title: "Cointegration Broken",
     paragraphs: [
       "This pair no longer shows a statistically stable long-run relationship (p-value > 0.10).",
     ],
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [
-          { label: "•", description: "Avoid new positions on this pair until cointegration is re-established.", tone: "bad" },
-          { label: "•", description: "Close any existing position — the statistical basis for mean reversion no longer holds.", tone: "bad" },
-        ],
-      },
-    ],
+    note: "Without cointegration, there is no reliable statistical basis for a convergence probability on this pair.",
   },
   // ETF-scanner signals (SignalBadge is shared between both scanners)
   BUY_DISCOUNT: {
-    title: "Buy Discount",
+    title: "Trading at Discount",
     paragraphs: ["The ETF is trading notably below its fair value / indicative NAV."],
-    note: "Expected outcome: price is likely to rise back toward NAV.",
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [{ label: "•", description: "Consider buying — the discount typically closes as authorized participants arbitrage the gap.", tone: "good" }],
-      },
-    ],
+    note: "Discounts of this magnitude have historically closed as authorized participants arbitrage the gap — an elevated convergence probability toward NAV.",
   },
   SELL_PREMIUM: {
-    title: "Sell Premium",
+    title: "Trading at Premium",
     paragraphs: ["The ETF is trading notably above its fair value / indicative NAV."],
-    note: "Expected outcome: price is likely to fall back toward NAV.",
-    groups: [
-      {
-        heading: "Recommendation",
-        items: [{ label: "•", description: "Consider avoiding new purchases, or selling if held — the premium typically closes via arbitrage.", tone: "bad" }],
-      },
-    ],
+    note: "Premiums of this magnitude have historically closed back toward NAV — an elevated convergence probability.",
   },
   EXTREME_MISPRICING: {
     title: "Extreme Mispricing",
     paragraphs: ["The ETF is extremely far from its indicative NAV — beyond the normal tracking range."],
     bullets: [
-      "A very strong arbitrage opportunity, or",
+      "A very high convergence probability toward NAV, or",
       "A liquidity or data issue in the underlying benchmark.",
     ],
-    note: "Extreme mispricing has the highest potential reward but also the highest risk — verify before acting.",
+    note: "Extreme mispricing carries both a higher convergence probability and a higher risk that the deviation reflects a data or liquidity issue rather than a true price dislocation.",
   },
 };

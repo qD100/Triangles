@@ -118,15 +118,20 @@ export function findThresholdCrossings(
   return crossings;
 }
 
+// Deliberately state-only labels — never an instruction (buy/sell, long/
+// short, enter/exit-as-verb). Each label describes what the data is doing
+// (diverged, converged, mispriced) and the signal's color communicates the
+// risk tier; direction (below/above mean) is a neutral fact, not a
+// prescribed trade side.
 export const SIGNAL_LABELS: Record<EtfSignal | PairSignal, string> = {
   NORMAL: "Normal",
   WATCH: "Watch",
-  BUY_DISCOUNT: "Buy Discount",
-  SELL_PREMIUM: "Sell Premium",
+  BUY_DISCOUNT: "Trading at Discount",
+  SELL_PREMIUM: "Trading at Premium",
   EXTREME_MISPRICING: "Extreme Mispricing",
-  ENTRY_LONG: "Entry Long",
-  ENTRY_SHORT: "Entry Short",
-  EXIT: "Exit",
+  ENTRY_LONG: "Diverged Below Mean",
+  ENTRY_SHORT: "Diverged Above Mean",
+  EXIT: "Converged",
   EXTREME_DIVERGENCE: "Extreme Divergence",
   COINTEGRATION_BROKEN: "Cointegration Broken",
 };

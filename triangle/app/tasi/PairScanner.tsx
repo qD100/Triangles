@@ -171,7 +171,7 @@ export default function PairScanner({ initialData }: { initialData: PairsScanner
           value: detail.winProbability !== null ? `${(detail.winProbability * 100).toFixed(0)}%` : "—",
           sublabel: "historical reversion rate",
         },
-        { label: "Trade Confidence", value: `${(detail.tradeConfidence * 100).toFixed(0)}%` },
+        { label: "Signal Confidence", value: `${(detail.tradeConfidence * 100).toFixed(0)}%` },
         { label: "Hedge Ratio", value: formatNumber(selectedRow.hedgeRatio) },
       ]
     : [];

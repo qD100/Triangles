@@ -30,13 +30,18 @@ export const STATUS = {
 
 export type { EtfSignal, PairSignal };
 
+// ENTRY_LONG/ENTRY_SHORT (and BUY_DISCOUNT/SELL_PREMIUM) intentionally share
+// one color: both directions are the same underlying finding — a
+// statistically significant divergence with an elevated convergence
+// probability — so color no longer doubles as an implicit "this one's the
+// buy, this one's the sell" cue the way green/red would.
 const SIGNAL_COLOR: Record<EtfSignal | PairSignal, string> = {
   NORMAL: TEXT_SECONDARY,
   WATCH: STATUS.warning,
   ENTRY_LONG: STATUS.good,
   BUY_DISCOUNT: STATUS.good,
-  ENTRY_SHORT: STATUS.serious,
-  SELL_PREMIUM: STATUS.serious,
+  ENTRY_SHORT: STATUS.good,
+  SELL_PREMIUM: STATUS.good,
   EXIT: CATEGORICAL.blue,
   EXTREME_DIVERGENCE: STATUS.critical,
   EXTREME_MISPRICING: STATUS.critical,

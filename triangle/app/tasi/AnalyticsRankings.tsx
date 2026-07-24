@@ -97,7 +97,7 @@ export default function AnalyticsRankings({ pairsData }: { pairsData: PairsScann
       <RankingList title="Fastest Mean Reversion" rows={fastestReversion} valueLabel="Half-life" value={(r) => formatDays(r.halfLifeDays)} />
       <RankingList title="Highest Opportunity Score" rows={highestOpportunity} valueLabel="Score" value={(r) => String(r.opportunityScore)} />
       <RankingList title="Most Stable Pairs" rows={mostStable} valueLabel="Std Spread" value={(r) => formatNumber(r.stdSpread)} />
-      <RankingList title="Highest Trade Confidence" rows={highestConfidence} valueLabel="Confidence" value={(r) => `${(r.tradeConfidence * 100).toFixed(0)}%`} />
+      <RankingList title="Highest Signal Confidence" rows={highestConfidence} valueLabel="Confidence" value={(r) => `${(r.tradeConfidence * 100).toFixed(0)}%`} />
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { ThresholdCrossing } from "@/lib/tasi/opportunityScore";
 
 const EVENT_LABEL: Record<ThresholdCrossing["event"], string> = {
   ENTERED_EXTREME: "Entered extreme zone",
-  ENTERED_ENTRY_ZONE: "Entered entry zone",
+  ENTERED_ENTRY_ZONE: "Entered divergence zone",
   RETURNED_TO_NORMAL: "Returned to normal",
 };
 

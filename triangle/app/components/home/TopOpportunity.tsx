@@ -20,7 +20,7 @@ export default function TopOpportunity() {
           Top Opportunity
         </div>
         <span className="rounded-md border border-[#18D26E]/30 px-1.5 py-0.5 text-[9px] font-bold tracking-wider text-[#18D26E]">
-          Entry Long
+          Diverged Below Mean
         </span>
       </div>
 
