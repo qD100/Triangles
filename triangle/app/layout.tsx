@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Triangle Terminal",
+  title: "supersonicscan",
   description: "Real-time cryptocurrency triangular arbitrage monitor",
 };
 
