@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowUpRight, Globe } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Globe } from "lucide-react";
 import { SiInstagram, SiSnapchat, SiTiktok, SiX, SiYoutube } from "react-icons/si";
 import { TriangleLogoIcon } from "@/app/components/icons";
 
@@ -192,10 +192,25 @@ export default function LinksPage() {
         </div>
 
         <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.74 }}
+          className="mt-9 w-full"
+        >
+          <Link
+            href="/"
+            className="lk-home-button flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-[#111111] px-4 py-3 text-sm font-semibold text-zinc-300 transition-colors"
+          >
+            <ArrowLeft className="lk-home-arrow h-4 w-4 transition-transform" />
+            Back to homepage
+          </Link>
+        </motion.div>
+
+        <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.5, delay: 0.8 }}
-          className="mt-12"
+          transition={{ duration: 0.5, delay: 0.88 }}
+          className="mt-10"
         >
           <Link
             href="/"
@@ -256,6 +271,14 @@ const BACKGROUND_CSS = `
   100% { top: -10%; opacity: 0; }
 }
 
+.lk-home-button:hover {
+  border-color: rgba(59, 130, 246, 0.45);
+  background-color: #161616;
+  color: #ffffff;
+}
+.lk-home-button:hover .lk-home-arrow {
+  transform: translateX(-2px);
+}
 .lk-link-card:hover {
   border-color: color-mix(in srgb, var(--brand-color) 45%, transparent);
   background-color: #161616;
