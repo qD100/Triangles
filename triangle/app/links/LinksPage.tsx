@@ -53,8 +53,8 @@ const LINKS: LinkItem[] = [
   },
   {
     label: "My Company",
-    handle: "alahmadiforit.com",
-    href: "https://www.alahmadiforit.com/",
+    handle: "syncode.sa",
+    href: "https://syncode.sa/",
     icon: Globe,
     color: "#3B82F6",
   },
