@@ -60,7 +60,7 @@ export default function ScannerCard({
 
       <div className="mt-3 text-[11px] font-medium text-zinc-500">{scanner.scanningLabel}</div>
 
-      <div className="mt-2 flex-1">{dashboard}</div>
+      <div className="mt-2 flex flex-1 flex-col justify-center">{dashboard}</div>
 
       <button
         type="button"

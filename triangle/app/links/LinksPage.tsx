@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowUpRight, Globe } from "lucide-react";
-import { SiInstagram, SiSnapchat, SiTiktok, SiX, SiYoutube } from "react-icons/si";
+import { SiDiscord, SiInstagram, SiSnapchat, SiTiktok, SiX, SiYoutube } from "react-icons/si";
 import { TriangleLogoIcon } from "@/app/components/icons";
 
 type LinkItem = {
@@ -50,6 +50,20 @@ const LINKS: LinkItem[] = [
     href: "https://www.snapchat.com/@euggre?invite_id=VivNNdFt&locale=en_SA%40calendar%3Dgregorian&share_id=35xmwBfLQ9ygjsmVi-BTAQ&sid=e6a96063271744f8990761b3bdfca5db",
     icon: SiSnapchat,
     color: "#FFFC00",
+  },
+  {
+    label: "TASI Discord",
+    handle: "Unofficial community",
+    href: "https://discord.gg/aTMpSVjYuJ",
+    icon: SiDiscord,
+    color: "#5865F2",
+  },
+  {
+    label: "DeepMinds",
+    handle: "Discord server",
+    href: "https://discord.gg/uNpFNChfxC",
+    icon: SiDiscord,
+    color: "#5865F2",
   },
   {
     label: "My Company",
