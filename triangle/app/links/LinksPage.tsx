@@ -3,7 +3,7 @@
 import { useEffect, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowUpRight, Globe, Users } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, DollarSign, Globe } from "lucide-react";
 import { SiDiscord, SiInstagram, SiSnapchat, SiTiktok, SiX, SiYoutube } from "react-icons/si";
 import { TriangleLogoIcon } from "@/app/components/icons";
 
@@ -52,13 +52,6 @@ const LINKS: LinkItem[] = [
     color: "#FFFC00",
   },
   {
-    label: "Creators.sa",
-    handle: "@5usd",
-    href: "https://creators.sa/5usd",
-    icon: Users,
-    color: "#8B5CF6",
-  },
-  {
     label: "TASI Discord",
     handle: "Unofficial community",
     href: "https://discord.gg/aTMpSVjYuJ",
@@ -78,6 +71,13 @@ const LINKS: LinkItem[] = [
     href: "https://syncode.sa/",
     icon: Globe,
     color: "#3B82F6",
+  },
+  {
+    label: "Creators.sa",
+    handle: "@5usd",
+    href: "https://creators.sa/5usd",
+    icon: DollarSign,
+    color: "#22C55E",
   },
 ];
 
