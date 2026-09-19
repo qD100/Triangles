@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, ArrowUpRight, DollarSign, Globe } from "lucide-react";
 import { SiDiscord, SiInstagram, SiSnapchat, SiTiktok, SiX, SiYoutube } from "react-icons/si";
 import { TriangleLogoIcon } from "@/app/components/icons";
+import { SYNCODE_ARIA_LABEL, SYNCODE_URL } from "@/app/components/SiteFooter";
 
 type LinkItem = {
   label: string;
@@ -13,6 +14,7 @@ type LinkItem = {
   href: string;
   icon: ComponentType<{ className?: string }>;
   color: string;
+  ariaLabel?: string;
 };
 
 const LINKS: LinkItem[] = [
@@ -68,9 +70,10 @@ const LINKS: LinkItem[] = [
   {
     label: "My Company",
     handle: "syncode.sa",
-    href: "https://syncode.sa/",
+    href: SYNCODE_URL,
     icon: Globe,
     color: "#3B82F6",
+    ariaLabel: SYNCODE_ARIA_LABEL,
   },
   {
     label: "Creators.sa",
@@ -185,6 +188,7 @@ export default function LinksPage() {
               href={item.href}
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={item.ariaLabel}
               initial={{ opacity: 0, y: 14 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: 0.32 + i * 0.06 }}
@@ -233,13 +237,16 @@ export default function LinksPage() {
           transition={{ duration: 0.5, delay: 0.88 }}
           className="mt-10"
         >
-          <Link
-            href="/"
+          <a
+            href={SYNCODE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={SYNCODE_ARIA_LABEL}
             className="flex items-center gap-1.5 text-xs font-medium text-zinc-600 transition-colors hover:text-zinc-400"
           >
             <TriangleLogoIcon className="h-3 w-3" />
-            Powered by Triangle Terminal
-          </Link>
+            Powered by Syncode — syncode.sa
+          </a>
         </motion.div>
       </main>
     </div>
