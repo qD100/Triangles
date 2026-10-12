@@ -68,15 +68,15 @@ const LINKS: LinkItem[] = [
     color: "#5865F2",
   },
   {
-    label: "My Company",
+    label: "CV Builder",
     handle: "syncode.sa",
-    href: SYNCODE_URL,
+    href: "https://syncode.sa/cv",
     icon: Globe,
     color: "#3B82F6",
     ariaLabel: SYNCODE_ARIA_LABEL,
   },
   {
-    label: "Creators.sa",
+    label: "donate - help me grow",
     handle: "@5usd",
     href: "https://creators.sa/5usd",
     icon: DollarSign,
